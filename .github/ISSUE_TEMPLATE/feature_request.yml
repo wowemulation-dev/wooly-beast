@@ -1,0 +1,66 @@
+name: Feature Request
+description: Suggest a new feature or enhancement
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea for improving TrinityCore?
+        Please describe your suggestion in detail.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Feature Description
+      description: Describe the feature you would like to see.
+      placeholder: What would you like to be added or changed?
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: |
+        Why would this feature be useful?
+        What problem does it solve?
+      placeholder: Explain why this feature would be valuable.
+    validations:
+      required: true
+
+  - type: textarea
+    id: implementation
+    attributes:
+      label: Suggested Implementation
+      description: |
+        If you have ideas about how this could be implemented, describe them here.
+        This is optional but helpful.
+      placeholder: How might this feature be implemented?
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: |
+        Have you considered any alternative solutions or workarounds?
+      placeholder: Describe any alternatives you've considered.
+
+  - type: dropdown
+    id: branch
+    attributes:
+      label: Target Branch
+      description: Which branch should this feature target?
+      options:
+        - 3.3.5
+        - master
+        - Both
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      description: Would you be willing to contribute to implementing this feature?
+      options:
+        - label: I am willing to submit a pull request for this feature

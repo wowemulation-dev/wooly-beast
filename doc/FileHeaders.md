@@ -1,10 +1,10 @@
-To make things look uniform here's the headers we use for sourcefiles.
+# File Headers
 
- It makes it "prettier" as it's applied to any of the sourcefiles 
-(source and headers) , giving us a template licensing-style that we stick to
-(or at least keeping in the same style licensewise).
+All source files (`.cpp` and `.h`) should include the standard license header.
 
---- SNIP ---
+## Standard Header
+
+```cpp
 /*
  * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
@@ -21,9 +21,13 @@ To make things look uniform here's the headers we use for sourcefiles.
  * You should have received a copy of the GNU General Public License along
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
---- SNIP ---
+```
 
-Thank you for using these headers when you add new files/modify already existing
-files!
+## Usage
 
- - The TrinityCore developers
+Add this header to:
+
+- New source files you create
+- Existing files you modify that lack the header
+
+This maintains consistent licensing style across the codebase.

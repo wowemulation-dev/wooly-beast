@@ -1,0 +1,91 @@
+name: Database Issue
+description: Report an issue with database content (quests, creatures, items, etc.)
+labels: ["database"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for issues related to database content such as
+        quests, creatures, items, NPCs, spawns, or other game data.
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      description: What type of content is affected?
+      options:
+        - Quest
+        - Creature/NPC
+        - Item
+        - Spell
+        - Game Object
+        - Spawn/Position
+        - Loot
+        - Vendor
+        - Trainer
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: |
+        Describe the database issue.
+        Include links to Wowhead or other sources showing correct behavior.
+      placeholder: |
+        Example: Quest "Example Quest" (ID: 12345) does not give the correct reward.
+        Wowhead: https://www.wowhead.com/wotlk/quest=12345
+    validations:
+      required: true
+
+  - type: textarea
+    id: current-behavior
+    attributes:
+      label: Current Behavior
+      description: What is currently happening in-game?
+      placeholder: Describe what happens now.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      description: What should happen according to retail or documentation?
+      placeholder: Describe what should happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: |
+        Provide links to sources that document the correct behavior.
+        Wowhead, video evidence, or other reliable sources.
+      placeholder: |
+        - https://www.wowhead.com/wotlk/quest=12345
+        - https://www.youtube.com/watch?v=...
+
+  - type: dropdown
+    id: branch
+    attributes:
+      label: Branch
+      description: Which branch does this affect?
+      options:
+        - 3.3.5
+        - master
+        - Both
+    validations:
+      required: true
+
+  - type: input
+    id: database
+    attributes:
+      label: Database Version
+      description: Which TDB version are you using?
+      placeholder: TDB 335.24061
+    validations:
+      required: true

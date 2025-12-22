@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: TrinityCore Discord
+    url: https://discord.trinitycore.org/
+    about: Community support
+  - name: TrinityCore Forums
+    url: https://community.trinitycore.org/
+    about: Discussions and help
+  - name: TrinityCore Wiki
+    url: https://trinitycore.atlassian.net/wiki/spaces/tc/overview
+    about: Documentation
