@@ -8,10 +8,16 @@
 # Converts update files from sql/updates to PostgreSQL format
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-CONVERTER="$SCRIPT_DIR/mysql_to_postgres_converter.py"
 
 # Branch version (cata_classic for Cataclysm, 3.3.5 for WotLK)
 BRANCH_VERSION="${BRANCH_VERSION:-cata_classic}"
+
+# Ensure uv dependencies are installed
+cd "$SCRIPT_DIR"
+if [ ! -d ".venv" ]; then
+    echo "Installing converter dependencies..."
+    uv sync
+fi
 
 # Source is the branch version directory, target is postgresql subdirectory
 SOURCE_DIR="${1:-$SCRIPT_DIR/../../sql/updates}"
@@ -28,9 +34,9 @@ echo "================================================"
 echo "Branch version: $BRANCH_VERSION"
 echo
 
-# Check if converter exists
-if [ ! -f "$CONVERTER" ]; then
-    echo -e "${RED}Error: Converter script not found at $CONVERTER${NC}"
+# Check if uv is available
+if ! command -v uv &> /dev/null; then
+    echo -e "${RED}Error: uv is not installed. Install it from https://docs.astral.sh/uv/${NC}"
     exit 1
 fi
 
@@ -74,12 +80,12 @@ for db_type in auth characters world hotfixes; do
 
         # Convert the file
         echo -n "  Converting $filename... "
-        if python3 "$CONVERTER" "$file" "$TARGET_FILE" 2>/dev/null; then
+        if uv run --directory "$SCRIPT_DIR" mysql-to-postgres "$file" "$TARGET_FILE" 2>/dev/null; then
             echo -e "${GREEN}OK${NC}"
         else
             echo -e "${RED}FAILED${NC}"
             # Try to get error details
-            python3 "$CONVERTER" "$file" "$TARGET_FILE" 2>&1 | tail -3
+            uv run --directory "$SCRIPT_DIR" mysql-to-postgres "$file" "$TARGET_FILE" 2>&1 | tail -3
         fi
     done
 
