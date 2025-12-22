@@ -4,3 +4,6 @@ contrib/
 
 # Standard license text (unmodified GPL-2.0)
 LICENSE.md
+
+# YAML issue templates (not Markdown)
+.github/ISSUE_TEMPLATE/*.yml
