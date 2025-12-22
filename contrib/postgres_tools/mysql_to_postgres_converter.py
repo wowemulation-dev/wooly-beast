@@ -25,6 +25,37 @@ class MySQLToPostgreSQLConverter:
         if self.debug:
             print(f"DEBUG: {message}", file=sys.stderr)
 
+    def preprocess_mysqldump(self, content: str) -> str:
+        """Remove MySQL-specific dump artifacts before conversion"""
+        self.log_debug("Preprocessing mysqldump content...")
+
+        # Remove MySQL conditional comments /*!xxxxx ... */
+        # These contain MySQL-specific settings like character set, time zone, etc.
+        original_len = len(content)
+        content = re.sub(r'/\*!\d+[^*]*\*/', '', content)
+        if len(content) < original_len:
+            self.log_debug(f"Removed MySQL conditional comments ({original_len - len(content)} chars)")
+
+        # Remove LOCK TABLES ... WRITE; statements
+        lock_count = len(re.findall(r'LOCK TABLES.*?;', content, flags=re.IGNORECASE | re.DOTALL))
+        content = re.sub(r'LOCK TABLES.*?;\s*\n?', '', content, flags=re.IGNORECASE | re.DOTALL)
+        if lock_count > 0:
+            self.log_debug(f"Removed {lock_count} LOCK TABLES statements")
+
+        # Remove UNLOCK TABLES; statements
+        unlock_count = len(re.findall(r'UNLOCK TABLES;', content, flags=re.IGNORECASE))
+        content = re.sub(r'UNLOCK TABLES;\s*\n?', '', content, flags=re.IGNORECASE)
+        if unlock_count > 0:
+            self.log_debug(f"Removed {unlock_count} UNLOCK TABLES statements")
+
+        # Remove SET statements for MySQL session variables
+        set_count = len(re.findall(r'^SET\s+(?:@\w+\s*=|NAMES|character_set|collation).*?;', content, flags=re.MULTILINE | re.IGNORECASE))
+        content = re.sub(r'^SET\s+(?:@\w+\s*=|NAMES|character_set|collation).*?;\s*\n?', '', content, flags=re.MULTILINE | re.IGNORECASE)
+        if set_count > 0:
+            self.log_debug(f"Removed {set_count} SET statements")
+
+        return content
+
     def extract_mysql_variables(self, content: str) -> Dict[str, str]:
         """Extract MySQL variable declarations (SET @VAR = value) - only real variables, not comments"""
         variables = {}
@@ -108,6 +139,9 @@ class MySQLToPostgreSQLConverter:
 
     def convert_sql_content(self, content: str) -> str:
         """Convert SQL content by applying all transformations"""
+
+        # First, preprocess mysqldump content to remove artifacts
+        content = self.preprocess_mysqldump(content)
 
         # Remove MySQL-specific directives and conditional comments
         self.log_debug("Removing MySQL-specific directives...")
@@ -209,6 +243,34 @@ class MySQLToPostgreSQLConverter:
 
         content = re.sub(r'DROP TABLE IF EXISTS (\w+)', add_cascade_if_needed, content)
 
+        # IMPORTANT: Convert AUTO_INCREMENT BEFORE type conversion
+        # AUTO_INCREMENT patterns need to match MySQL types (int, bigint, etc.)
+        self.log_debug("Converting AUTO_INCREMENT to SERIAL...")
+
+        # Handle various AUTO_INCREMENT patterns - must happen before type conversion
+        serial_patterns = [
+            # Match: column_name int/tinyint/smallint/mediumint [unsigned] AUTO_INCREMENT
+            (r'(\w+)\s+(?:tiny|small|medium)?int\s*(?:\(\d+\))?\s+(?:unsigned\s+)?(?:NOT\s+NULL\s+)?AUTO_INCREMENT', r'\1 SERIAL'),
+            # Match: column_name bigint [unsigned] AUTO_INCREMENT
+            (r'(\w+)\s+bigint\s*(?:\(\d+\))?\s+(?:unsigned\s+)?(?:NOT\s+NULL\s+)?AUTO_INCREMENT', r'\1 BIGSERIAL'),
+            # Remove table-level AUTO_INCREMENT = value
+            (r'AUTO_INCREMENT\s*=\s*\d+', ''),
+        ]
+
+        for pattern, replacement in serial_patterns:
+            matches = len(re.findall(pattern, content, flags=re.IGNORECASE))
+            if matches > 0:
+                self.log_debug(f"Converting {matches} AUTO_INCREMENT patterns")
+                content = re.sub(pattern, replacement, content, flags=re.IGNORECASE)
+
+        # Remove column-level CHARACTER SET and COLLATE declarations
+        # These appear on individual columns: `column_name text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`
+        self.log_debug("Removing column-level CHARACTER SET/COLLATE...")
+        charset_count = len(re.findall(r'\s+CHARACTER\s+SET\s+\w+(?:\s+COLLATE\s+\w+)?', content, flags=re.IGNORECASE))
+        content = re.sub(r'\s+CHARACTER\s+SET\s+\w+(?:\s+COLLATE\s+\w+)?', '', content, flags=re.IGNORECASE)
+        if charset_count > 0:
+            self.log_debug(f"Removed {charset_count} column CHARACTER SET/COLLATE declarations")
+
         # Enhanced data type conversion
         self.log_debug("Converting data types...")
         type_conversions = {
@@ -217,10 +279,10 @@ class MySQLToPostgreSQLConverter:
             r'\bmediumint(\s*\(\d+\))?(\s+unsigned)?\b': 'integer',
             r'\bint(\s*\(\d+\))?(\s+unsigned)?\b': 'integer',
             r'\bbigint(\s*\(\d+\))?(\s+unsigned)?\b': 'bigint',
-            r'\bfloat(\s*\(\d+,\s*\d+\))?\b': 'real',
-            r'\bdouble(\s*\(\d+,\s*\d+\))?\b': 'double precision',
-            r'\bdecimal(\s*\(\d+,\s*\d+\))?\b': 'decimal',
-            r'\bnumeric(\s*\(\d+,\s*\d+\))?\b': 'numeric',
+            r'\bfloat(\s*\(\d+,\s*\d+\))?(\s+unsigned)?\b': 'real',
+            r'\bdouble(\s*\(\d+,\s*\d+\))?(\s+unsigned)?\b': 'double precision',
+            r'\bdecimal(\s*\(\d+,\s*\d+\))?(\s+unsigned)?\b': 'decimal',
+            r'\bnumeric(\s*\(\d+,\s*\d+\))?(\s+unsigned)?\b': 'numeric',
             r'\bdatetime\b': 'timestamp without time zone',
             r'\btimestamp\b': 'timestamp without time zone',
             r'\btime\b': 'time without time zone',
@@ -252,21 +314,13 @@ class MySQLToPostgreSQLConverter:
         if conversion_count > 0:
             self.log_debug(f"Converted {conversion_count} data type references")
 
-        # Enhanced AUTO_INCREMENT -> SERIAL conversion
-        self.log_debug("Converting AUTO_INCREMENT to SERIAL...")
-
-        # Handle various AUTO_INCREMENT patterns
-        serial_patterns = [
-            (r'(\w+)\s+(?:tiny|small|medium)?int\s*(?:\(\d+\))?\s+(?:unsigned\s+)?AUTO_INCREMENT', r'\1 SERIAL'),
-            (r'(\w+)\s+bigint\s*(?:\(\d+\))?\s+(?:unsigned\s+)?AUTO_INCREMENT', r'\1 BIGSERIAL'),
-            (r'AUTO_INCREMENT\s*=\s*\d+', ''),  # Remove AUTO_INCREMENT = value
-        ]
-
-        for pattern, replacement in serial_patterns:
-            matches = len(re.findall(pattern, content, flags=re.IGNORECASE))
-            if matches > 0:
-                self.log_debug(f"Converting {matches} AUTO_INCREMENT patterns")
-                content = re.sub(pattern, replacement, content, flags=re.IGNORECASE)
+        # Remove any remaining 'unsigned' keywords (e.g., real unsigned, double precision unsigned)
+        # This handles cases where unsigned wasn't captured in the type conversion patterns
+        self.log_debug("Removing remaining 'unsigned' keywords...")
+        unsigned_count = len(re.findall(r'\b(real|double precision|decimal|numeric|smallint|integer|bigint)\s+unsigned\b', content, flags=re.IGNORECASE))
+        content = re.sub(r'\b(real|double precision|decimal|numeric|smallint|integer|bigint)\s+unsigned\b', r'\1', content, flags=re.IGNORECASE)
+        if unsigned_count > 0:
+            self.log_debug(f"Removed {unsigned_count} remaining 'unsigned' keywords")
 
         # Enhanced ENGINE, CHARSET, and other MySQL-specific clause removal
         self.log_debug("Removing MySQL-specific table clauses...")
@@ -358,7 +412,12 @@ class MySQLToPostgreSQLConverter:
 
         self.log_debug(f"Converting file: {input_file}")
 
-        # Extract MySQL variables first
+        # Preprocess mysqldump content FIRST to remove artifacts
+        # This must happen before variable extraction to avoid picking up
+        # MySQL dump session variables like @saved_cs_client
+        content = self.preprocess_mysqldump(content)
+
+        # Extract MySQL variables (from actual user SQL, not dump artifacts)
         variables = self.extract_mysql_variables(content)
 
         if variables:
