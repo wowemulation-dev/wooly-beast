@@ -1,0 +1,7 @@
+# Third-party dependencies
+dep/
+contrib/
+
+# GitHub templates (intentionally lack first-line headings)
+issue_template.md
+pull_request_template.md

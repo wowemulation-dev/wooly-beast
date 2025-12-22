@@ -1,0 +1,95 @@
+# cmake-format configuration for TrinityCore
+# See https://cmake-format.readthedocs.io/en/latest/configuration.html
+
+format:
+  # Line and indentation
+  line_width: 100
+  tab_size: 2
+  use_tabchars: false
+  line_ending: "unix"
+
+  # Case handling - "canonical" preserves custom command case
+  command_case: "canonical"
+  keyword_case: "upper"
+
+  # Argument layout - optimized for readability
+  dangle_parens: true
+  dangle_align: "prefix-indent"
+  max_pargs_hwrap: 4
+  max_subgroups_hwrap: 2
+  min_prefix_chars: 4
+  max_lines_hwrap: 2
+
+  # Spacing
+  separate_ctrl_name_with_space: false
+  separate_fn_name_with_space: false
+
+  # Sorting - disabled to preserve intentional ordering
+  enable_sort: false
+  autosort: false
+
+markup:
+  # Preserve comment formatting
+  enable_markup: false
+  first_comment_is_literal: true
+  literal_comment_pattern: ".*"
+
+parse:
+  additional_commands:
+    # TrinityCore custom commands - source collection
+    CollectSourceFiles:
+      pargs:
+        nargs: 2+
+    CollectIncludeDirectories:
+      pargs:
+        nargs: 2+
+    GroupSources:
+      pargs:
+        nargs: 1
+
+    # TrinityCore custom commands - script module system
+    GetScriptModuleList:
+      pargs:
+        nargs: 1
+    GetPathToScriptModule:
+      pargs:
+        nargs: 2
+    GetProjectNameOfScriptModule:
+      pargs:
+        nargs: 2
+    GetNativeSharedLibraryName:
+      pargs:
+        nargs: 2
+    ScriptModuleNameToVariable:
+      pargs:
+        nargs: 2
+    GetScriptsBasePath:
+      pargs:
+        nargs: 1
+    ConfigureScriptLoader:
+      pargs:
+        nargs: 4+
+    IsDynamicLinkingRequired:
+      pargs:
+        nargs: 1
+
+    # TrinityCore custom commands - installation
+    GetInstallOffset:
+      pargs:
+        nargs: 1
+
+    # TrinityCore custom commands - precompiled headers
+    add_cxx_pch:
+      pargs:
+        nargs: 2
+    ADD_CXX_PCH:
+      pargs:
+        nargs: 2
+    REUSE_CXX_PCH:
+      pargs:
+        nargs: 2
+
+    # TrinityCore custom commands - utilities
+    WarnAboutSpacesInBuildPath:
+      pargs:
+        nargs: 0
