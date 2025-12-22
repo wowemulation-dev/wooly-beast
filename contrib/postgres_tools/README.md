@@ -2,11 +2,26 @@
 
 This directory contains tools for converting TrinityCore SQL files from MySQL to PostgreSQL format.
 
+## Requirements
+
+- Python 3.12+
+- [uv](https://docs.astral.sh/uv/) - Python package manager
+
+## Installation
+
+```bash
+cd contrib/postgres_tools
+uv sync
+```
+
 ## Tools Overview
 
-### mysql_to_postgres_converter.py
+### mysql-to-postgres (CLI)
 
-Converts MySQL schema and update files to PostgreSQL-compatible format.
+Converts MySQL schema and update files to PostgreSQL-compatible format using a hybrid approach:
+
+- **DDL statements** (CREATE, ALTER, DROP, TRUNCATE) use [sqlglot](https://github.com/tobymao/sqlglot) for proper SQL parsing that preserves string literals
+- **DML statements** (INSERT, UPDATE, DELETE, REPLACE) use fast regex conversion
 
 **Features:**
 
@@ -16,17 +31,21 @@ Converts MySQL schema and update files to PostgreSQL-compatible format.
 - Converts foreign key constraints
 - Handles unsigned integer types
 - Converts MySQL functions to PostgreSQL equivalents
-- Handles MySQL variables via DO $$ blocks
+- Properly handles mysqldump artifacts (LOCK/UNLOCK TABLES, conditional comments)
 
 **Usage:**
 
 ```bash
 # Convert schema file
-python3 mysql_to_postgres_converter.py input.sql output.sql
+uv run mysql-to-postgres input.sql output.sql
 
 # Convert with debug output
-python3 mysql_to_postgres_converter.py input.sql output.sql --debug
+uv run mysql-to-postgres input.sql output.sql --debug
 ```
+
+### mysql_to_postgres_converter.py (legacy)
+
+Original regex-based converter. Use `mysql-to-postgres` CLI for new conversions.
 
 ### convert_updates.sh
 

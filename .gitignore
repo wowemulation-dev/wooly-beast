@@ -4,3 +4,8 @@ cmake-build-*/
 
 # CMake user presets
 *.user
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
