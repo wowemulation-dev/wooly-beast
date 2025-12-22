@@ -6,7 +6,8 @@
 
 ## Purpose
 
-This guide provides the **standard file headers** used throughout TrinityCore to ensure:
+This guide provides the **standard file headers** used throughout TrinityCore
+to ensure:
 
 - **Consistent licensing** across all source files
 - **Legal compliance** with GPL-2.0-or-later license
@@ -22,21 +23,10 @@ This guide provides the **standard file headers** used throughout TrinityCore to
 Use this header for all `.cpp`, `.c`, `.h`, and `.hpp` files:
 
 ```cpp
-/*
- * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
+/**
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program. If not, see <http://www.gnu.org/licenses/>.
+ * Copyright 2008 - 2025, TrinityCore and the TrinityCore contributors
  */
 ```
 
@@ -51,20 +41,9 @@ Use this header for all `.cpp`, `.c`, `.h`, and `.hpp` files:
 Use this header for all CMake-related files:
 
 ```cmake
-# This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
+# SPDX-License-Identifier: GPL-2.0-or-later
 #
-# This program is free software; you can redistribute it and/or modify it
-# under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 2 of the License, or (at your
-# option) any later version.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-# FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
-# more details.
-#
-# You should have received a copy of the GNU General Public License along
-# with this program. If not, see <http://www.gnu.org/licenses/>.
+# Copyright 2008 - 2025, TrinityCore and the TrinityCore contributors
 ```
 
 **Examples of files that need this header:**
@@ -106,21 +85,10 @@ Use this header for all CMake-related files:
 When creating a new file, **always start with the appropriate header**:
 
 ```cpp
-/*
- * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
+/**
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program. If not, see <http://www.gnu.org/licenses/>.
+ * Copyright 2008 - 2025, TrinityCore and the TrinityCore contributors
  */
 
 #include "YourHeader.h"
@@ -137,21 +105,10 @@ When modifying files that don't have headers:
 1. **Continue with existing includes/code**
 
 ```cpp
-/*
- * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
+/**
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program. If not, see <http://www.gnu.org/licenses/>.
+ * Copyright 2008 - 2025, TrinityCore and the TrinityCore contributors
  */
 
 // Existing includes below
@@ -165,21 +122,10 @@ When modifying files that don't have headers:
 ### C++ Class Header Example
 
 ```cpp
-/*
- * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
+/**
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program. If not, see <http://www.gnu.org/licenses/>.
+ * Copyright 2008 - 2025, TrinityCore and the TrinityCore contributors
  */
 
 #ifndef TRINITY_EXAMPLE_H
@@ -198,21 +144,10 @@ public:
 ### C++ Source File Example
 
 ```cpp
-/*
- * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
+/**
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program. If not, see <http://www.gnu.org/licenses/>.
+ * Copyright 2008 - 2025, TrinityCore and the TrinityCore contributors
  */
 
 #include "ExampleClass.h"
@@ -224,24 +159,26 @@ ExampleClass::ExampleClass()
 }
 ```
 
+### CMake File Example
+
+```cmake
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# Copyright 2008 - 2025, TrinityCore and the TrinityCore contributors
+
+CollectSourceFiles(
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  PRIVATE_SOURCES
+)
+```
+
 ### Script File Example
 
 ```cpp
-/*
- * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
+/**
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program. If not, see <http://www.gnu.org/licenses/>.
+ * Copyright 2008 - 2025, TrinityCore and the TrinityCore contributors
  */
 
 #include "ScriptMgr.h"
@@ -286,7 +223,7 @@ For batch operations, you can use scripts:
 
 ```bash
 # Find files missing headers (example)
-find src/ -name "*.cpp" -exec grep -L "This file is part of the TrinityCore Project" {} \;
+find src/ -name "*.cpp" -exec grep -L "SPDX-License-Identifier" {} \;
 
 # Add headers using your favorite editor
 # vim, VS Code, CLion, etc. all support bulk operations
@@ -306,21 +243,10 @@ Create a file template in VS Code:
     "cpp-header": {
         "prefix": "header",
         "body": [
-            "/*",
-            " * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information",
+            "/**",
+            " * SPDX-License-Identifier: GPL-2.0-or-later",
             " *",
-            " * This program is free software; you can redistribute it and/or modify it",
-            " * under the terms of the GNU General Public License as published by the",
-            " * Free Software Foundation; either version 2 of the License, or (at your",
-            " * option) any later version.",
-            " *",
-            " * This program is distributed in the hope that it will be useful, but WITHOUT",
-            " * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or",
-            " * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for",
-            " * more details.",
-            " *",
-            " * You should have received a copy of the GNU General Public License along",
-            " * with this program. If not, see <http://www.gnu.org/licenses/>.",
+            " * Copyright 2008 - 2025, TrinityCore and the TrinityCore contributors",
             " */",
             "",
             "$0"
@@ -350,17 +276,17 @@ Set up file templates in CLion:
 **Wrong**:
 
 ```cpp
-/* This file is part of the TrinityCore Project. */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+   Copyright 2008 - 2025, TrinityCore and the TrinityCore contributors */
 ```
 
 **Correct**:
 
 ```cpp
-/*
- * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
+/**
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
- * This program is free software; you can redistribute it and/or modify it
- * ...
+ * Copyright 2008 - 2025, TrinityCore and the TrinityCore contributors
  */
 ```
 
@@ -369,9 +295,10 @@ Set up file templates in CLion:
 **Wrong**:
 
 ```cpp
-/*
- * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
- * ...
+/**
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ *
+ * Copyright 2008 - 2025, TrinityCore and the TrinityCore contributors
  */
 #include "header.h"
 ```
@@ -379,9 +306,10 @@ Set up file templates in CLion:
 **Correct**:
 
 ```cpp
-/*
- * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
- * ...
+/**
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ *
+ * Copyright 2008 - 2025, TrinityCore and the TrinityCore contributors
  */
 
 #include "header.h"
@@ -394,14 +322,16 @@ Set up file templates in CLion:
 ### Why These Headers Matter
 
 - **Legal Protection**: Clear licensing terms for all code
+- **SPDX Compliance**: Industry-standard license identification
 - **GPL Compliance**: Meets GNU GPL requirements
 - **International Standards**: Recognized licensing format
 
 ### License Details
 
 - **License**: [GPL-2.0-or-later](https://spdx.org/licenses/GPL-2.0-or-later.html)
+- **SPDX ID**: `GPL-2.0-or-later`
 - **Copyright**: Collective copyright to TrinityCore and contributors
-- **Year Range**: See AUTHORS file for contributor information
+- **Year Range**: 2008 (project start) to current year
 
 ---
 
@@ -419,7 +349,8 @@ When submitting code:
 
 ### Review Process
 
-Maintainers will check for proper headers during code review. Missing or incorrect headers may delay your pull request.
+Maintainers will check for proper headers during code review. Missing or
+incorrect headers may delay your pull request.
 
 ---
 
@@ -430,39 +361,17 @@ Maintainers will check for proper headers during code review. Missing or incorre
 **C++ Files:**
 
 ```cpp
-/*
- * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
+/**
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program. If not, see <http://www.gnu.org/licenses/>.
+ * Copyright 2008 - 2025, TrinityCore and the TrinityCore contributors
  */
 ```
 
 **CMake Files:**
 
 ```cmake
-# This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
+# SPDX-License-Identifier: GPL-2.0-or-later
 #
-# This program is free software; you can redistribute it and/or modify it
-# under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 2 of the License, or (at your
-# option) any later version.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-# FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
-# more details.
-#
-# You should have received a copy of the GNU General Public License along
-# with this program. If not, see <http://www.gnu.org/licenses/>.
+# Copyright 2008 - 2025, TrinityCore and the TrinityCore contributors
 ```
