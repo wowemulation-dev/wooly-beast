@@ -524,7 +524,7 @@ void AddCustomScripts()
 
 ### Community Resources
 
-- **[Discord #scripting](https://discord.gg/TrinityCore)** - Real-time scripting help
+- **[Discord #scripting](https://discord.trinitycore.org/)** - Real-time scripting help
 - **[GitHub Examples](https://github.com/TrinityCore/TrinityCore/tree/3.3.5/src/server/scripts)** - Browse existing scripts
 - **[YouTube Tutorials](https://www.youtube.com/results?search_query=trinitycore+scripting)** - Video guides
 

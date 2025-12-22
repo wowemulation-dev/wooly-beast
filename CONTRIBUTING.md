@@ -24,7 +24,7 @@ TrinityCore is built by the community, for the community. We believe in:
 
 ## Communication Channels
 
-- **[Discord Server](https://discord.gg/TrinityCore)**: Real-time discussions
+- **[Discord Server](https://discord.trinitycore.org/)**: Real-time discussions
 - **[Forums](https://community.trinitycore.org/)**: In-depth discussions
 - **[Issue Tracker](https://github.com/TrinityCore/TrinityCore/issues)**: For
   bug reports and feature requests
