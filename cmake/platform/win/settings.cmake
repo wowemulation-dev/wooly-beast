@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# Copyright 2008 - 2025, TrinityCore and the TrinityCore contributors
+
 target_compile_definitions(trinity-compile-option-interface
   INTERFACE
     _WIN32_WINNT=0x0A00                     # Windows 10

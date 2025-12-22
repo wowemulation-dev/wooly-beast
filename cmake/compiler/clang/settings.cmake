@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# Copyright 2008 - 2025, TrinityCore and the TrinityCore contributors
+
 set(CLANG_EXPECTED_VERSION 11.0.0)
 if(CMAKE_CXX_COMPILER_ID MATCHES "AppleClang")
   # apple doesnt like to do the sane thing which would be to use the same version numbering as regular clang

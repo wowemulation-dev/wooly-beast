@@ -1,13 +1,6 @@
-# This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
-# Copyright 2019 Josua Mayer <josua.mayer97@gmail.com>
+# SPDX-License-Identifier: GPL-2.0-or-later
 #
-# This file is free software; as a special exception the author gives
-# unlimited permission to copy and/or distribute it, with or without
-# modifications, as long as this notice is preserved.
-#
-# This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY, to the extent permitted by law; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+# Copyright 2008 - 2025, TrinityCore and the TrinityCore contributors
 
 set(SFMT_SOURCES
   SFMT.c

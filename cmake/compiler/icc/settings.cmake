@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# Copyright 2008 - 2025, TrinityCore and the TrinityCore contributors
+
 if(PLATFORM EQUAL 32)
   target_compile_options(trinity-compile-option-interface
     INTERFACE

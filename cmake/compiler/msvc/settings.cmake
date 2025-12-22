@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# Copyright 2008 - 2025, TrinityCore and the TrinityCore contributors
+
 set(MSVC_EXPECTED_VERSION 19.32)
 set(MSVC_EXPECTED_VERSION_STRING "Microsoft Visual Studio 2022 17.2")
 
