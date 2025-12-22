@@ -222,7 +222,7 @@ export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
 ### Where to Get Help
 
 - **[Community Forums](https://community.trinitycore.org)** - Post detailed compilation issues
-- **[Discord #development](https://discord.gg/TrinityCore)** - Real-time help
+- **[Discord #development](https://discord.trinitycore.org/)** - Real-time help
 - **[GitHub Issues](https://github.com/TrinityCore/TrinityCore/issues)** - Report bugs with full logs
 
 ### Creating a Good Issue Report

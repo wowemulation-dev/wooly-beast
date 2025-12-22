@@ -571,7 +571,7 @@ tail -f ~/server/logs/*.log
 ### Community Support
 
 - **[Forums](https://community.trinitycore.org)** - Community support
-- **[Discord](https://discord.gg/TrinityCore)** - Real-time help
+- **[Discord](https://discord.trinitycore.org/)** - Real-time help
 - **[GitHub Issues](https://github.com/TrinityCore/TrinityCore/issues)** - Bug reports
 
 ---
