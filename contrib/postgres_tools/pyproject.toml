@@ -1,0 +1,25 @@
+[project]
+name = "trinity-postgres-tools"
+version = "0.1.0"
+description = "MySQL to PostgreSQL conversion tools for TrinityCore"
+readme = "README.md"
+authors = [
+    { name = "Daniel S. Reichenbach", email = "daniel@kogito.network" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "sqlglot>=26.0.0",
+]
+
+[project.scripts]
+mysql-to-postgres = "trinity_postgres_tools.converter:main"
+
+[build-system]
+requires = ["uv_build>=0.9.18,<0.10.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.0.0",
+]
