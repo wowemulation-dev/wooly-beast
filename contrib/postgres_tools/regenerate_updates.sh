@@ -6,12 +6,18 @@
 
 # Script to regenerate all PostgreSQL update files from MySQL versions
 
-SCRIPT_DIR="$(dirname "$0")"
-CONVERTER_PATH="$SCRIPT_DIR/mysql_to_postgres_converter.py"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BASE_PATH="$SCRIPT_DIR/../../sql/updates"
 
 # Branch version (3.3.5 for WotLK, cata_classic for Cataclysm)
 BRANCH_VERSION="${BRANCH_VERSION:-3.3.5}"
+
+# Ensure uv dependencies are installed
+cd "$SCRIPT_DIR"
+if [ ! -d ".venv" ]; then
+    echo "Installing converter dependencies..."
+    uv sync
+fi
 
 echo "Regenerating PostgreSQL updates for branch: $BRANCH_VERSION"
 
@@ -38,7 +44,7 @@ convert_updates() {
             postgres_file="$postgres_dir/$base_name"
 
             echo "  Converting $base_name..."
-            python3 "$CONVERTER_PATH" "$mysql_file" "$postgres_file"
+            uv run --directory "$SCRIPT_DIR" mysql-to-postgres "$mysql_file" "$postgres_file"
         fi
     done
 }

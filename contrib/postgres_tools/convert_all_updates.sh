@@ -9,8 +9,14 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONVERTER="$SCRIPT_DIR/mysql_to_postgres_converter.py"
 SQL_DIR="$SCRIPT_DIR/../../sql/updates"
+
+# Ensure uv dependencies are installed
+cd "$SCRIPT_DIR"
+if [ ! -d ".venv" ]; then
+    echo "Installing converter dependencies..."
+    uv sync
+fi
 
 # Branch version (3.3.5 for WotLK, cata_classic for Cataclysm)
 BRANCH_VERSION="${BRANCH_VERSION:-3.3.5}"
@@ -39,7 +45,7 @@ convert_database_updates() {
         if [ -f "$sql_file" ]; then
             filename=$(basename "$sql_file")
             echo "  Converting $filename..."
-            python3 "$CONVERTER" "$sql_file" "$pg_dir/$filename" || {
+            uv run --directory "$SCRIPT_DIR" mysql-to-postgres "$sql_file" "$pg_dir/$filename" || {
                 echo "  ERROR: Failed to convert $filename"
                 # Continue with other files even if one fails
             }
