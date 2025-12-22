@@ -27,13 +27,16 @@
     "allowed_elements": [
       "a",
       "br",
+      "details",
       "div",
       "figcaption",
       "figure",
       "img",
       "picture",
       "source",
+      "strong",
       "sub",
+      "summary",
       "sup"
     ]
   },
@@ -50,6 +53,7 @@
       "diff",
       "dockerfile",
       "ebnf",
+      "ini",
       "glsl",
       "hcl",
       "json",

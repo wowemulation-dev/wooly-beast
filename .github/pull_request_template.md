@@ -1,46 +1,81 @@
 # Pull Request
 
-## Summary
+## Description
 
-<!-- Describe your changes in a few sentences -->
+<!-- Describe your changes -->
 
-## Changes
+## Changes Proposed
+
+<!-- List changes made -->
 
 -
 -
 -
 
-## Target Branch
+## Target Branch(es)
 
-<!-- Which branch(es) should this be merged into? -->
+<!-- Mark the branch(es) this PR targets with an 'x' -->
 
-- [ ] 3.3.5
 - [ ] master
+- [ ] 3.3.5
 
-## Related Issues
+## Issues Addressed
 
-<!-- Link any related issues: Fixes #123, Closes #456 -->
+<!-- Link any issues this PR fixes or addresses -->
 
-Fixes #
+- Closes #
+- Fixes #
+- Resolves #
+
+## Type of Change
+
+<!-- Mark the relevant option(s) with an 'x' -->
+
+- [ ] Bug fix (non-breaking change which fixes an issue)
+- [ ] New feature (non-breaking change which adds functionality)
+- [ ] Breaking change (may cause existing functionality to not work as expected)
+- [ ] Database update
+- [ ] Documentation update
+- [ ] Code cleanup/refactor
 
 ## Testing
 
-<!-- Describe how you tested your changes -->
+<!-- Tests performed -->
 
-- [ ] Builds successfully
-- [ ] Tested in-game
-- [ ] Unit tests pass
+- [ ] I have tested my changes locally
+- [ ] This change builds successfully on my machine
+- [ ] I have tested the changes in-game
+- [ ] I have added tests that prove my fix is effective or that my feature works
+
+### Test Details
+
+<!-- Test details -->
+
+- **Build Environment**: (e.g., Ubuntu 22.04, GCC 10, MySQL 8.0)
+- **How to Test**:
+  1.
+  2.
+  3.
 
 ## Checklist
 
-- [ ] I have read the [Contributing Guidelines](../CONTRIBUTING.md)
+<!-- Complete before submitting -->
+
 - [ ] My code follows the project's code style
-- [ ] I have added comments where necessary
-- [ ] I have updated documentation if needed
+- [ ] I have run clang-format on my C++ changes
+- [ ] I have commented my code, particularly in hard-to-understand areas
+- [ ] I have made corresponding changes to the documentation
+- [ ] My changes generate no new warnings
+- [ ] SQL files are named correctly: `YYYY_MM_DD_NN_database_name.sql`
+- [ ] I have squashed my commits into a single commit (or a few logical commits)
 
-## Known Issues
+## Known Issues / TODO
 
-<!-- List any known issues or remaining work -->
+<!-- Known issues or pending items -->
 
 - [ ]
 - [ ]
+
+## Additional Notes
+
+<!-- Other information for reviewers -->

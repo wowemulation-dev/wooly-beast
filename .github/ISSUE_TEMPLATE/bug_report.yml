@@ -1,19 +1,32 @@
 name: Bug Report
-description: Report a bug or unexpected behavior
-labels: ["bug"]
+description: Report a bug or unexpected behavior in TrinityCore
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to report a bug.
-        Please fill out the form below to help us investigate.
+        Fill out the form below to report a bug.
+
+  - type: dropdown
+    id: branch
+    attributes:
+      label: Branch
+      description: Which branch(es) are affected?
+      multiple: true
+      options:
+        - master
+        - 3.3.5
+        - Both
+    validations:
+      required: true
 
   - type: textarea
     id: description
     attributes:
-      label: Description
-      description: Describe the bug clearly and concisely.
-      placeholder: What happened?
+      label: Bug Description
+      description: Describe the bug
+      placeholder: "Example: NPCs in Stormwind don't react to player attacks"
     validations:
       required: true
 
@@ -21,10 +34,8 @@ body:
     id: current-behavior
     attributes:
       label: Current Behavior
-      description: |
-        What actually happens?
-        If this is a crash, upload the crashlog to https://gist.github.com/ and link it here.
-      placeholder: Describe what happens currently.
+      description: What happens currently? If this is a crash, please upload the crashlog to https://gist.github.com/ and link it here
+      placeholder: "The NPC stands still when attacked and doesn't fight back..."
     validations:
       required: true
 
@@ -33,61 +44,71 @@ body:
     attributes:
       label: Expected Behavior
       description: What should happen instead?
-      placeholder: Describe the expected behavior.
+      placeholder: "The NPC should defend itself and call for help from nearby guards..."
     validations:
       required: true
 
   - type: textarea
-    id: reproduction
+    id: steps-to-reproduce
     attributes:
       label: Steps to Reproduce
-      description: |
-        Provide step-by-step instructions to reproduce the issue.
-        Include links to relevant Wowhead pages for creatures, items, quests, etc.
+      description: List steps to reproduce the issue. Include IDs/names with database links
       placeholder: |
-        1. Step one
-        2. Step two
-        3. Step three
+        1. Teleport to Stormwind (.go xyz -8832.8 626.2 94.0 0)
+        2. Attack any Stormwind City Guard (Entry: 68)
+        3. Observe that the guard doesn't react
+    validations:
+      required: true
+
+  - type: input
+    id: tc-version
+    attributes:
+      label: TrinityCore Version
+      description: First line from worldserver startup
+      placeholder: "TrinityCore rev. 0000000000 2000-01-09 11:31:41 +0100 (my branch) (Win64, RelWithDebInfo, Static)"
+    validations:
+      required: true
+
+  - type: input
+    id: database-version
+    attributes:
+      label: Database Version
+      description: TDB version in use
+      placeholder: "TDB 335.24111"
     validations:
       required: true
 
   - type: dropdown
-    id: branch
-    attributes:
-      label: Branch
-      description: Which branch are you using?
-      options:
-        - 3.3.5
-        - master
-        - Both
-    validations:
-      required: true
-
-  - type: input
-    id: revision
-    attributes:
-      label: Server Revision
-      description: |
-        Copy the first line from worldserver or authserver startup.
-        Example: TrinityCore rev. abc123 2025-01-01 12:00:00 +0000 (3.3.5 branch)
-      placeholder: TrinityCore rev. ...
-    validations:
-      required: true
-
-  - type: input
-    id: database
-    attributes:
-      label: Database Version
-      description: Which TDB version are you using?
-      placeholder: TDB 335.24061
-    validations:
-      required: true
-
-  - type: input
-    id: os
+    id: operating-system
     attributes:
       label: Operating System
-      description: What OS are you running the server on?
-      placeholder: Ubuntu 22.04, Windows 11, etc.
+      options:
+        - Windows 10
+        - Windows 11
+        - Ubuntu 20.04
+        - Ubuntu 22.04
+        - Ubuntu 24.04
+        - Debian 11
+        - Debian 12
+        - macOS
+        - Other Linux
+        - Other (please specify in description)
     validations:
       required: true
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Other relevant information
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Confirmation
+      description: Confirm before submitting
+      options:
+        - label: I have searched existing issues and this is not a duplicate
+          required: true
+        - label: I have tested this on a clean TrinityCore installation
+          required: false
