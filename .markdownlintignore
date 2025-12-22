@@ -2,6 +2,5 @@
 dep/
 contrib/
 
-# GitHub templates (intentionally lack first-line headings)
-issue_template.md
-pull_request_template.md
+# Standard license text (unmodified GPL-2.0)
+LICENSE.md

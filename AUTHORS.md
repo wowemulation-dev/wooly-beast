@@ -1,57 +1,63 @@
-# List of AUTHORS who contributed over time to the TrinityCore project
+# Authors
 
-## Warning
-The code of TrinityCore is shipped as it is without any form of warranty,
-and - except for third party libraries - licensed under the GPL 2.0,
-which you can read from the file "COPYING"
+This file lists the authors who contributed to the TrinityCore project.
 
-## Point of current development
-The project is currently hosted at https://www.trinitycore.org/ and developed under https://github.com/TrinityCore
+## License
 
-## History of development
-Development of this project dates back to 2004, and was developed under various umbrellas over time:
-* WoW Daemon Team, 2004
-* MaNGOS project, 2005-2008, located at http://www.mangosproject.org
-* MaNGOS project, 2008-2011, located at http://getmangos.com
-* UDB project, 2007-2009, located at http://udbforums.org
-* SD2 project, 2008-2009, located at http://www.scriptdev2.com
-* TrinityCore, 2008-2023, located at https://www.trinitycore.org/
+The code of TrinityCore is shipped as-is without any form of warranty.
+Except for third party libraries, it is licensed under the GPL 2.0.
+See the [LICENSE.md](LICENSE.md) file for details.
 
-## Authorship of the code
-Authorship is assigned for each commit within the git history, which is stored in these git repositories:
-* github.com/cmangos/mangos-svn (History from MaNGOS project from 2005-2008, originally hosted at http://mangos.svn.sourceforge.net)
-* github.com/TrinityCore/TrinityCore
+## Project Information
 
-Unfortunately we have no detailed information of the history of the WoWD project;
-if somebody can provide information, please contact us, so that we can make this history available
+The project is currently hosted at <https://www.trinitycore.org/> and
+developed under <https://github.com/TrinityCore>.
 
-## Exceptions with third party libraries
-The third party libraries have their own way of addressing authorship, and the authorship of commits importing/ updating
-a third party library reflects who did the importing instead of who wrote the code within the commit.
+## History
 
-The Authors of third party libraries are not explicitly mentioned, and usually are possible to obtain from the files belonging to the third party libraries.
+Development of this project dates back to 2004 and was developed under
+various umbrellas:
 
-## Authors List:
+- WoW Daemon Team, 2004
+- MaNGOS project, 2005-2008, <http://www.mangosproject.org>
+- MaNGOS project, 2008-2011, <http://getmangos.com>
+- SD2 project, 2008-2009, <http://getmangos.com>
+- TrinityCore, 2008-2025, <https://www.trinitycore.org/>
 
-*Please inform us, if you find somebody who is missing!*
+## Authorship
 
-= TrinityCore -- Thanks/credits file =
+Authorship is assigned for each commit within the git history, stored in
+these repositories:
+
+- <https://github.com/cmangos/mangos-svn> (MaNGOS project 2005-2008)
+- <https://github.com/TrinityCore/TrinityCore>
+
+Unfortunately we have no detailed information of the history of the WoWD
+project. If somebody can provide information, please contact us.
+
+## Third Party Libraries
+
+Third party libraries have their own way of addressing authorship. The
+authorship of commits importing or updating a third party library reflects
+who did the importing instead of who wrote the code.
+
+The authors of third party libraries are usually available from the files
+belonging to those libraries.
+
+## Contributors
 
 TrinityCore is a derivation/rewrite of MaNGOS, which was originally written
-by Team Python and the WoW Daemon Team. Many people further helped Trinity Core
-by submitting bug reports, code patches, and suggestions. Thanks to the
-community!
+by Team Python and the WoW Daemon Team. Many people helped TrinityCore by
+submitting bug reports, code patches, and suggestions.
 
-Special thanks should go out to the WowwoW team. We have gained help from
-them many times in the creation of this project. Keep up the good work guys.
+Special thanks to:
 
-Thanks to the ScriptDev2 team (http://www.scriptdev2.com) for scripts.
+- The WowwoW team for their help in the creation of this project
+- The ScriptDev2 team (<http://www.scriptdev2.com>) for scripts
+- The WCell team (especially Ralek) for research on realm reconnect
+  sequence, item scaling stats algorithm, and gameobject rotation issues
 
-Thanks to the WCell team (especially Ralek) for research on realm reconnect
-sequence, item scaling stats algorithm, gameobject rotation issues.
-
-Thanks go out to the following people for various patches/code (there may be duplicates or invalid names, most of them
-were extracted from old commits):
+The following people contributed patches and code:
 
 - 0xFuture
 - 123qwe
@@ -311,7 +317,7 @@ were extracted from old commits):
 - dythzer
 - E. van Harten
 - e000
-- e@cacaw.net
+- e (cacaw.net)
 - Ebrithil
 - ebx
 - Edder
@@ -825,7 +831,7 @@ were extracted from old commits):
 - Sethoso
 - SeTM
 - SgT-Fatality
-- shadowu@mail.bg
+- shadowu (mail.bg)
 - Shauren
 - shax
 - Shendor
@@ -1050,3 +1056,5 @@ were extracted from old commits):
 - ZxBiohazardZx
 - Дмитрий
 - ﻿4m1g0
+
+If you find somebody missing, please inform us.

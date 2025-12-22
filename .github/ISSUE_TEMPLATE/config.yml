@@ -1,14 +1,14 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Discord
-    url: https://discord.com/invite/3UxRn4Kn?utm_source=Discord%20Widget&utm_medium=Connect
-    about: Chat
-  - name: How to Compile
-    url: https://trinitycore.info/
-    about: Wiki
-  - name: Community Support Forum
+  - name: TrinityCore Discord
+    url: https://discord.trinitycore.org/
+    about: Community support
+  - name: TrinityCore Forums
     url: https://community.trinitycore.org/
-    about: Forum
-  - name: Discussions
+    about: Discussions and help
+  - name: TrinityCore Wiki
+    url: https://trinitycore.atlassian.net/wiki/spaces/tc/overview
+    about: Documentation
+  - name: GitHub Discussions
     url: https://github.com/TrinityCore/TrinityCore/discussions
-    about: Discuss
+    about: General discussions
