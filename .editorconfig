@@ -1,11 +1,31 @@
+; top-most EditorConfig file
+root = true
+; Unix-style newlines
 [*]
 charset = utf-8
+end_of_line = lf
 indent_size = 4
-tab_width = 4
 indent_style = space
 insert_final_newline = true
 trim_trailing_whitespace = true
 max_line_length = 160
 
+[*.md]
+indent_size = 2
+trim_trailing_whitespace = false
+
+[{Makefile,*.bash,*.sh}]
+indent_style = tab
+
+[*.{ps1,bat,cmd,inf}]
+indent_style = tab
+end_of_line = crlf
+
+[*.{json,jsonc,yml,yaml}]
+indent_size = 2
+
 [*.{c,h,cpp,hpp,inl}]
-charset = latin1
+charset = utf-8
+
+[{CMakeLists.txt,*.cmake}]
+indent_size = 2
