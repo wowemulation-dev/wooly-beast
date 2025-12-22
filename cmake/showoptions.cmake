@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# Copyright 2008 - 2025, TrinityCore and the TrinityCore contributors
+
 # output generic information about the core and buildtype chosen
 message("")
 message("* TrinityCore revision   : ${rev_hash} ${rev_date} (${rev_branch} branch)")

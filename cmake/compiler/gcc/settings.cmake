@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# Copyright 2008 - 2025, TrinityCore and the TrinityCore contributors
+
 set(GCC_EXPECTED_VERSION 11.1.0)
 
 if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS GCC_EXPECTED_VERSION)

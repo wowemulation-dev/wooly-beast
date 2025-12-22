@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# Copyright 2008 - 2025, TrinityCore and the TrinityCore contributors
+
 include(CheckCXXSourceCompiles)
 
 set(CLANG_EXPECTED_VERSION 11.0.0)
