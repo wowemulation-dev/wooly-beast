@@ -136,17 +136,18 @@ class TransformationStage(BasePipelineStage):
             flags=re.IGNORECASE,
         )
 
-        # Remove ENGINE clause
-        sql = re.sub(r"\)\s*ENGINE\s*=\s*\w+[^;]*$", ")", sql, flags=re.IGNORECASE)
-        sql = re.sub(r"\s*ENGINE\s*=\s*\w+(?:\s+[^,;)]*)?", "", sql, flags=re.IGNORECASE)
-
-        # Remove DEFAULT CHARSET, COLLATE, ROW_FORMAT, etc.
-        sql = re.sub(r"\s*DEFAULT\s+CHARSET\s*=\s*\w+(?:\s+[^,;)]*)?", "", sql, flags=re.IGNORECASE)
-        sql = re.sub(r"\s*COLLATE\s*=\s*\w+(?:\s+[^,;)]*)?", "", sql, flags=re.IGNORECASE)
+        # Remove table options (ENGINE, CHARSET, COLLATE, COMMENT, etc.)
+        # Must handle COMMENT='...' which contains parentheses
+        # Order matters: remove COMMENT first to avoid regex conflicts
+        sql = re.sub(r"\s*COMMENT\s*=\s*'[^']*'", "", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\s*DEFAULT\s+CHARSET\s*=\s*\w+", "", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\s*COLLATE\s*=\s*\w+", "", sql, flags=re.IGNORECASE)
         sql = re.sub(r"\s*ROW_FORMAT\s*=\s*\w+", "", sql, flags=re.IGNORECASE)
         sql = re.sub(r"\s*KEY_BLOCK_SIZE\s*=\s*\d+", "", sql, flags=re.IGNORECASE)
         sql = re.sub(r"\s*PACK_KEYS\s*=\s*\w+", "", sql, flags=re.IGNORECASE)
-        sql = re.sub(r"\s*COMMENT\s*=\s*'[^']*'", "", sql, flags=re.IGNORECASE)
+        # Remove ENGINE clause (after other options are gone)
+        sql = re.sub(r"\)\s*ENGINE\s*=\s*\w+\s*;", ");", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\s*ENGINE\s*=\s*\w+", "", sql, flags=re.IGNORECASE)
 
         # Remove ASC/DESC from index columns
         sql = re.sub(r"(`\w+`)\s+(ASC|DESC)(?=\s*[,)])", r"\1", sql, flags=re.IGNORECASE)
