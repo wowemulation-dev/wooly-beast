@@ -51,6 +51,11 @@ set_property(CACHE WITH_SOURCE_TREE PROPERTY STRINGS no flat hierarchical hierar
 option(WITHOUT_GIT      "Disable the GIT testing routines"                            0)
 option(BUILD_TESTING    "Build test suite" 0)
 
+# Database backend selection
+option(WITH_POSTGRESQL  "Build with PostgreSQL support"                               0)
+set(DATABASE_TYPE "MySQL" CACHE STRING "Database type: MySQL or PostgreSQL")
+set_property(CACHE DATABASE_TYPE PROPERTY STRINGS MySQL PostgreSQL)
+
 if(UNIX)
   option(USE_LD_GOLD    "Use GNU gold linker"                                        0)
 endif()

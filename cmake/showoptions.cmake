@@ -9,6 +9,16 @@ get_property(IS_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 if(NOT IS_MULTI_CONFIG)
   message("* TrinityCore buildtype  : ${CMAKE_BUILD_TYPE}")
 endif()
+
+# Database backend info
+if(WITH_POSTGRESQL OR DATABASE_TYPE STREQUAL "PostgreSQL")
+  message("* Database type          : PostgreSQL")
+  if(PostgreSQL_FOUND)
+    message("* PostgreSQL version     : ${PostgreSQL_VERSION_STRING}")
+  endif()
+else()
+  message("* Database type          : MySQL (default)")
+endif()
 message("")
 
 # output information about installation-directories and locations
