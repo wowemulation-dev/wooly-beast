@@ -4,54 +4,142 @@
 #
 # Copyright 2008 - 2025, TrinityCore and the TrinityCore contributors
 
-# Build TrinityCore for development with MySQL backend
+# Build TrinityCore for development with configurable database backend
 
 set -e
 
-# Branch-specific defaults to avoid collisions when working on multiple branches
-BUILD_DIR="${BUILD_DIR:-build-335}"
-INSTALL_DIR="${INSTALL_DIR:-$(pwd)/install-335}"
+# Configuration
 BUILD_TYPE="${BUILD_TYPE:-Debug}"
 JOBS="${JOBS:-$(nproc)}"
+BRANCH_SUFFIX="335"
+
+# Database backend selection
+# Options: mysql, postgresql, both
+BACKEND="${BACKEND:-mysql}"
+
+usage() {
+    echo "Usage: $0 [OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo "  --mysql       Build with MySQL backend only (default)"
+    echo "  --postgresql  Build with PostgreSQL backend only"
+    echo "  --both        Build with both MySQL and PostgreSQL backends"
+    echo "  --help        Show this help message"
+    echo ""
+    echo "Environment variables:"
+    echo "  BUILD_TYPE    CMake build type (default: Debug)"
+    echo "  JOBS          Number of parallel jobs (default: nproc)"
+    echo "  BACKEND       Database backend: mysql, postgresql, both (default: mysql)"
+    exit 0
+}
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --mysql)
+            BACKEND="mysql"
+            shift
+            ;;
+        --postgresql)
+            BACKEND="postgresql"
+            shift
+            ;;
+        --both)
+            BACKEND="both"
+            shift
+            ;;
+        --help|-h)
+            usage
+            ;;
+        *)
+            echo "Unknown option: $1"
+            usage
+            ;;
+    esac
+done
+
+build_backend() {
+    local backend=$1
+    local with_postgresql=0
+    local backend_name
+
+    if [[ "$backend" == "postgresql" ]]; then
+        with_postgresql=1
+        backend_name="PostgreSQL"
+    else
+        backend_name="MySQL"
+    fi
+
+    local build_dir="build-${BRANCH_SUFFIX}-${backend}"
+    local install_dir="$(pwd)/install-${BRANCH_SUFFIX}-${backend}"
+
+    echo "====================================="
+    echo "Building TrinityCore (${backend_name})"
+    echo "====================================="
+    echo "Build directory: ${build_dir}"
+    echo "Install directory: ${install_dir}"
+    echo "Build type: ${BUILD_TYPE}"
+    echo "Parallel jobs: ${JOBS}"
+    echo "====================================="
+
+    # Create build directory
+    mkdir -p "${build_dir}"
+
+    # Configure
+    cmake -S . -B "${build_dir}" \
+        -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
+        -DCMAKE_INSTALL_PREFIX="${install_dir}" \
+        -DWITH_WARNINGS=ON \
+        -DWITH_COREDEBUG=ON \
+        -DBUILD_TESTING=ON \
+        -DUSE_COREPCH=ON \
+        -DUSE_SCRIPTPCH=ON \
+        -DSERVERS=ON \
+        -DTOOLS=ON \
+        -DSCRIPTS=static \
+        -DWITH_POSTGRESQL="${with_postgresql}"
+
+    # Build
+    cmake --build "${build_dir}" -j "${JOBS}"
+
+    # Install
+    cmake --install "${build_dir}"
+
+    echo ""
+    echo "====================================="
+    echo "${backend_name} build completed!"
+    echo "====================================="
+    echo "Install location: ${install_dir}"
+    echo ""
+}
+
+# Build requested backends
+case $BACKEND in
+    mysql)
+        build_backend mysql
+        ;;
+    postgresql)
+        build_backend postgresql
+        ;;
+    both)
+        build_backend mysql
+        echo ""
+        build_backend postgresql
+        ;;
+esac
 
 echo "====================================="
-echo "Building TrinityCore (Development)"
+echo "All builds completed successfully!"
 echo "====================================="
-echo "Build directory: ${BUILD_DIR}"
-echo "Install directory: ${INSTALL_DIR}"
-echo "Build type: ${BUILD_TYPE}"
-echo "Parallel jobs: ${JOBS}"
-echo "====================================="
-
-# Create build directory
-mkdir -p "${BUILD_DIR}"
-
-# Configure
-cmake -S . -B "${BUILD_DIR}" \
-    -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
-    -DCMAKE_INSTALL_PREFIX="${INSTALL_DIR}" \
-    -DWITH_WARNINGS=ON \
-    -DWITH_COREDEBUG=ON \
-    -DBUILD_TESTING=ON \
-    -DUSE_COREPCH=ON \
-    -DUSE_SCRIPTPCH=ON \
-    -DSERVERS=ON \
-    -DTOOLS=ON \
-    -DSCRIPTS=static
-
-# Build
-cmake --build "${BUILD_DIR}" -j "${JOBS}"
-
-# Install
-cmake --install "${BUILD_DIR}"
-
 echo ""
-echo "====================================="
-echo "Build completed successfully!"
-echo "====================================="
-echo "Install location: ${INSTALL_DIR}"
-echo ""
-echo "To run:"
-echo "  cd ${INSTALL_DIR}"
+echo "To run (MySQL):"
+echo "  cd install-${BRANCH_SUFFIX}-mysql"
 echo "  ./bin/authserver -c etc/authserver.conf"
 echo "  ./bin/worldserver -c etc/worldserver.conf"
+if [[ "$BACKEND" == "both" || "$BACKEND" == "postgresql" ]]; then
+    echo ""
+    echo "To run (PostgreSQL):"
+    echo "  cd install-${BRANCH_SUFFIX}-postgresql"
+    echo "  ./bin/authserver -c etc/authserver.conf"
+    echo "  ./bin/worldserver -c etc/worldserver.conf"
+fi

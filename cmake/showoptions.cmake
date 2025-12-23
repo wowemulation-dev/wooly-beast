@@ -96,6 +96,16 @@ else()
   message("* Show source tree       : No")
 endif()
 
+# Database backend info
+if(WITH_POSTGRESQL OR DATABASE_TYPE STREQUAL "PostgreSQL")
+  message("* Database type          : PostgreSQL")
+  if(PostgreSQL_FOUND)
+    message("* PostgreSQL version     : ${PostgreSQL_VERSION_STRING}")
+  endif()
+else()
+  message("* Database type          : MySQL (default)")
+endif()
+
 if(WITHOUT_GIT)
   message("* Use GIT revision hash  : No")
   message("")
