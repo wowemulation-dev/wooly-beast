@@ -10,8 +10,8 @@ Uses a hybrid approach:
 import argparse
 import re
 import sys
+import traceback
 from pathlib import Path
-from typing import Optional
 
 import sqlglot
 from sqlglot.errors import ParseError
@@ -170,6 +170,76 @@ class MySQLToPostgreSQLConverter:
         sql = re.sub(r"\bINT\(\d+\)", "INTEGER", sql, flags=re.IGNORECASE)
         sql = re.sub(r"\bINT\b", "INTEGER", sql, flags=re.IGNORECASE)
 
+        # Convert MySQL ENUM to TEXT (PostgreSQL requires CREATE TYPE for enums)
+        sql = re.sub(r"\bENUM\s*\([^)]+\)", "TEXT", sql, flags=re.IGNORECASE)
+
+        # Convert MySQL SET to TEXT
+        sql = re.sub(r"\bSET\s*\([^)]+\)", "TEXT", sql, flags=re.IGNORECASE)
+
+        # Fix BYTEA - PostgreSQL doesn't allow size modifier
+        sql = re.sub(r"\bBYTEA\s*\(\d+\)", "BYTEA", sql, flags=re.IGNORECASE)
+
+        # Fix SMALLINT/TINYINT with size specifier
+        sql = re.sub(r"\bSMALLINT\s*\(\d+\)", "SMALLINT", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\bTINYINT\s*\(\d+\)", "SMALLINT", sql, flags=re.IGNORECASE)
+
+        # Fix UNIQUE constraint syntax: UNIQUE "name" (cols) -> UNIQUE (cols)
+        # We drop the constraint name to avoid conflicts
+        # (PostgreSQL constraint names are schema-scoped)
+        sql = re.sub(
+            r'\bUNIQUE\s+"[^"]+"\s*\(',
+            r'UNIQUE (',
+            sql,
+            flags=re.IGNORECASE,
+        )
+        # Also handle CONSTRAINT "name" UNIQUE -> UNIQUE (anonymous)
+        sql = re.sub(
+            r'\bCONSTRAINT\s+"[^"]+"\s+UNIQUE\s*\(',
+            r'UNIQUE (',
+            sql,
+            flags=re.IGNORECASE,
+        )
+
+        # Remove INDEX definitions from CREATE TABLE (PostgreSQL doesn't support inline INDEX)
+        # Pattern: , INDEX "name" (columns...)
+        sql = re.sub(
+            r',\s*INDEX\s+"[^"]+"\s*\([^)]+\)',
+            "",
+            sql,
+            flags=re.IGNORECASE,
+        )
+
+        # Also handle KEY (MySQL synonym for INDEX)
+        sql = re.sub(
+            r',\s*KEY\s+"[^"]+"\s*\([^)]+\)',
+            "",
+            sql,
+            flags=re.IGNORECASE,
+        )
+
+        # Remove FOREIGN KEY constraints to avoid table ordering issues
+        # TrinityCore handles referential integrity at application level
+        sql = re.sub(
+            r',\s*CONSTRAINT\s+"[^"]+"\s+FOREIGN\s+KEY\s*\([^)]+\)\s+REFERENCES\s+"[^"]+"\s*\([^)]+\)(?:\s+ON\s+(?:DELETE|UPDATE)\s+(?:CASCADE|RESTRICT|SET\s+NULL|NO\s+ACTION))*',
+            "",
+            sql,
+            flags=re.IGNORECASE,
+        )
+
+        # Remove USING BTREE/HASH from column definitions (sqlglot misplacement)
+        sql = re.sub(r"\s+USING\s+(?:BTREE|HASH)", "", sql, flags=re.IGNORECASE)
+
+        # Remove COLLATE from column definitions (PostgreSQL uses different collation names)
+        sql = re.sub(r"\s+COLLATE\s+\w+", "", sql, flags=re.IGNORECASE)
+
+        # Remove FULLTEXT INDEX definitions (PostgreSQL uses GIN indexes, created separately)
+        sql = re.sub(
+            r",\s*FULLTEXT\s+INDEX\s+\"[^\"]+\"\s*\([^)]+\)",
+            "",
+            sql,
+            flags=re.IGNORECASE,
+        )
+
         return sql
 
     def convert_ddl_with_sqlglot(self, sql: str) -> str:
@@ -200,6 +270,62 @@ class MySQLToPostgreSQLConverter:
         """
         # Remove backticks
         sql = re.sub(r"`([^`]+)`", r"\1", sql)
+
+        # Handle MySQL escape sequences properly
+        # Order matters: handle \\ first to avoid corrupting \\' sequences
+        #
+        # MySQL escape sequences:
+        #   \\ = literal backslash
+        #   \' = literal single quote
+        #   \" = literal double quote
+        #
+        # Problem: naive \\' -> '' replacement matches the second \ from \\
+        # and the ', breaking the escaped backslash.
+        #
+        # Solution: Use placeholder to protect \\ sequences during conversion
+
+        # Protect escaped backslashes with placeholder
+        placeholder = "\x00ESCAPED_BACKSLASH\x00"
+        sql = sql.replace("\\\\", placeholder)
+
+        # Now convert escaped quotes (safe because \\ is protected)
+        # MySQL: 'Zul\'Farrak' -> PostgreSQL: 'Zul''Farrak'
+        sql = sql.replace("\\'", "''")
+
+        # Remove escaped double quotes (MySQL: \" -> PostgreSQL: ")
+        sql = sql.replace('\\"', '"')
+
+        # Restore escaped backslashes
+        sql = sql.replace(placeholder, "\\\\")
+
+        # Handle \n, \r, \t by converting to PostgreSQL E'' strings not needed
+        # since we're converting literal \n in strings, not actual newlines
+
+        # Convert MySQL hex literals to PostgreSQL bytea format
+        # Using decode() function instead of '\x...' escape format to avoid
+        # psql meta-command interpretation when lines wrap
+        # 0x1234ABCD -> decode('1234ABCD', 'hex')
+        sql = re.sub(r"\b0x([0-9A-Fa-f]+)\b", r"decode('\1', 'hex')", sql)
+
+        # Convert MySQL unsigned max values to -1 for PostgreSQL signed types
+        # BIGINT UNSIGNED max (18446744073709551615) -> -1 (commonly used as "all" bitmask)
+        sql = sql.replace("18446744073709551615", "-1")
+        # INT UNSIGNED max (4294967295) -> -1
+        sql = sql.replace("4294967295", "-1")
+
+        # Convert unsigned integers that overflow signed types to their signed equivalents
+        def convert_unsigned_to_signed(match: re.Match[str]) -> str:
+            val = int(match.group(0))
+            # Convert unsigned 64-bit values > BIGINT_MAX to signed
+            if val > 9223372036854775807:
+                return str(val - 18446744073709551616)
+            # Convert unsigned 32-bit values > INT_MAX to signed
+            if val > 2147483647:
+                return str(val - 4294967296)
+            return match.group(0)
+
+        # Match large numbers (10+ digits) that might overflow
+        sql = re.sub(r"\b\d{10,}\b", convert_unsigned_to_signed, sql)
 
         # REPLACE INTO -> INSERT INTO (simplified)
         sql = re.sub(r"\bREPLACE\s+INTO\b", "INSERT INTO", sql, flags=re.IGNORECASE)
@@ -267,13 +393,28 @@ class MySQLToPostgreSQLConverter:
                 return "DML"
         return "OTHER"
 
+    def is_comment_only(self, sql: str) -> bool:
+        """
+        Check if a statement contains only comments and whitespace.
+        """
+        lines = sql.strip().split("\n")
+        for line in lines:
+            stripped = line.strip()
+            if stripped and not stripped.startswith("--"):
+                return False
+        return True
+
     def convert_statement(self, sql: str) -> str:
         """
         Convert a single SQL statement using the appropriate method.
         """
         sql = sql.strip()
-        if not sql or sql.startswith("--"):
+        if not sql:
             return sql
+
+        # Skip comment-only blocks - they cause --;  syntax errors
+        if self.is_comment_only(sql):
+            return ""
 
         stmt_type = self.get_statement_type(sql)
 
@@ -369,14 +510,14 @@ class MySQLToPostgreSQLConverter:
         return result
 
     def convert_file(
-        self, input_file: Path, output_file: Optional[Path] = None
+        self, input_file: Path, output_file: Path | None = None
     ) -> str:
         """
         Convert a MySQL SQL file to PostgreSQL.
         """
         self.log_debug(f"Converting file: {input_file}")
 
-        with open(input_file, "r", encoding="utf-8") as f:
+        with input_file.open(encoding="utf-8") as f:
             content = f.read()
 
         self.log_debug(f"Read {len(content)} bytes")
@@ -401,7 +542,7 @@ class MySQLToPostgreSQLConverter:
         result = header + result
 
         if output_file:
-            with open(output_file, "w", encoding="utf-8") as f:
+            with output_file.open("w", encoding="utf-8") as f:
                 f.write(result)
             self.log_debug(f"Output written to: {output_file}")
 
@@ -446,8 +587,6 @@ def main() -> None:
     except Exception as e:
         print(f"Error converting file: {e}", file=sys.stderr)
         if args.debug:
-            import traceback
-
             traceback.print_exc()
         sys.exit(1)
 

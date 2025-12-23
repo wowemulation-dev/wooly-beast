@@ -4,8 +4,20 @@ This directory contains tools for converting TrinityCore SQL files from MySQL to
 
 ## Requirements
 
+### Tool Requirements
+
 - Python 3.12+
 - [uv](https://docs.astral.sh/uv/) - Python package manager
+
+### Database Requirements
+
+- **Source Database**: MySQL 8.0+ or MariaDB 10.6+
+  - Required for generating mysqldump exports that the converter can process
+  - Older versions may use deprecated syntax not handled by the converter
+
+- **Target Database**: PostgreSQL 16+
+  - Required for full compatibility with generated SQL
+  - Earlier versions may lack support for some converted syntax
 
 ## Installation
 
