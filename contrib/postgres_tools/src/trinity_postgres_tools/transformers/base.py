@@ -5,6 +5,7 @@ Transformers modify sqlglot AST nodes to convert MySQL patterns
 to PostgreSQL equivalents.
 """
 
+import contextlib
 from abc import ABC, abstractmethod
 from typing import Protocol, runtime_checkable
 
@@ -121,12 +122,9 @@ class ExpressionVisitor:
         for child in children_to_process:
             transformed = self.visit(child, ctx)
             if transformed is None:
-                # Child was removed - use pop if available, otherwise replace
-                try:
+                # Child was removed - use pop if available, otherwise skip
+                with contextlib.suppress(AttributeError, KeyError):
                     child.pop()
-                except (AttributeError, KeyError):
-                    # If pop doesn't work, try replace with None (may not work)
-                    pass
             elif transformed is not child:
                 # Child was transformed
                 child.replace(transformed)

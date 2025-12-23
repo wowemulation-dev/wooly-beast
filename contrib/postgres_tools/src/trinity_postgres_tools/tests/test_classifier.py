@@ -1,7 +1,6 @@
 """Tests for statement classifier."""
 
 from trinity_postgres_tools.parsing.classifier import (
-    ClassifiedStatement,
     StatementClassifier,
     classify_statement,
     classify_statements,

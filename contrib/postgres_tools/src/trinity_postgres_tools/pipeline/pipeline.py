@@ -214,15 +214,18 @@ def create_default_pipeline(options: ConversionOptions | None = None) -> Convers
     Returns:
         Configured conversion pipeline
     """
-    # This will be populated as we implement stages
-    builder = PipelineBuilder()
-    if options:
-        builder.with_options(options)
+    # Import here to avoid circular imports
+    from trinity_postgres_tools.pipeline.stages import (  # noqa: PLC0415
+        PostprocessingStage,
+        PreprocessingStage,
+        SplittingStage,
+        TransformationStage,
+    )
 
-    # Add stages in order
-    # builder.add_preprocessing()
-    # builder.add_splitting()
-    # builder.add_transformation()
-    # builder.add_postprocessing()
+    pipeline = ConversionPipeline(options)
+    pipeline.add_stage(PreprocessingStage())
+    pipeline.add_stage(SplittingStage())
+    pipeline.add_stage(TransformationStage())
+    pipeline.add_stage(PostprocessingStage())
 
-    return builder.build()
+    return pipeline
