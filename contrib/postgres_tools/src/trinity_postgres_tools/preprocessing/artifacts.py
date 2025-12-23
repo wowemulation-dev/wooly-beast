@@ -51,18 +51,19 @@ class ArtifactRule:
 
 
 # Conditional comments - MySQL version-specific code
+# NOTE: Don't consume trailing semicolon - it may be the statement terminator
 CONDITIONAL_COMMENT_RULES = [
     ArtifactRule(
         name="conditional_comment_full",
         artifact_type=ArtifactType.CONDITIONAL_COMMENT,
-        pattern=r"/\*!\d+\s+.*?\*/;?",
+        pattern=r"/\*!\d+\s+.*?\*/",
         replacement="",
         multiline=True,
     ),
     ArtifactRule(
         name="conditional_comment_set",
         artifact_type=ArtifactType.CONDITIONAL_COMMENT,
-        pattern=r"/\*!\d+\s+SET\s+.*?\*/;?",
+        pattern=r"/\*!\d+\s+SET\s+.*?\*/",
         replacement="",
         multiline=True,
     ),
