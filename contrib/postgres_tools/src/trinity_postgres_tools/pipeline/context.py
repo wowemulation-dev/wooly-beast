@@ -24,6 +24,12 @@ class ConversionStats:
     statements_skipped: int = 0
     statements_failed: int = 0
 
+    # Legacy stats for backward compatibility
+    ddl_count: int = 0
+    dml_count: int = 0
+    other_count: int = 0
+    sqlglot_errors: int = 0
+
     type_conversions: dict[str, int] = field(default_factory=dict)
     function_conversions: dict[str, int] = field(default_factory=dict)
     artifacts_removed: dict[str, int] = field(default_factory=dict)
@@ -98,6 +104,9 @@ class ConversionContext:
     current_statement: str = ""
     current_statement_type: StatementType = StatementType.EMPTY
     current_line_number: int = 0
+
+    # Input statements (from splitting stage)
+    input_statements: list[str] = field(default_factory=list)
 
     # Accumulator for output
     output_statements: list[str] = field(default_factory=list)

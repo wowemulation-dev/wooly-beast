@@ -1,8 +1,6 @@
 """Tests for statement splitter."""
 
 from trinity_postgres_tools.parsing.splitter import (
-    Statement,
-    StatementSplitter,
     split_and_filter,
     split_statements,
 )
@@ -147,6 +145,8 @@ SELECT 2;"""
 
 SELECT 2;"""
         statements = split_statements(sql)
+        # Verify multiple statements were parsed
+        assert len(statements) >= 2
         # First statement ends on line 1
         # Second statement ends on line 3
 
