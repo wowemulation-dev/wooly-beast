@@ -47,8 +47,10 @@ select = [
 ]
 ignore = [
     "PLR2004",  # magic value comparison (common in SQL conversion)
+    "PLR0911",  # too many return statements (tokenizer dispatch)
     "PLR0912",  # too many branches (complex regex patterns)
     "PLR0915",  # too many statements
+    "RUF022",   # __all__ sorting (prefer logical grouping)
 ]
 
 [tool.ruff.lint.isort]
