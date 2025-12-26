@@ -271,11 +271,13 @@ These should be fixed in the converter. Report issues with specific error messag
 
 The PostgreSQL backend requires all SQL files to be converted from MySQL syntax. This section describes the conversion tools and workflow.
 
-### Converter Location
+### Converter Tool
 
-The MySQL to PostgreSQL converter is located at:
-```
-contrib/postgres_tools/mysql_to_postgres_converter.py
+The MySQL to PostgreSQL converter is installed via the `postgres_tools` package:
+
+```bash
+cd contrib/postgres_tools
+uv sync
 ```
 
 ### Converting Base Schema Files
@@ -283,15 +285,15 @@ contrib/postgres_tools/mysql_to_postgres_converter.py
 The base schema files (auth, characters) are small and convert quickly:
 
 ```bash
+cd contrib/postgres_tools
+
 # Convert auth database schema
-python3 contrib/postgres_tools/mysql_to_postgres_converter.py \
-  sql/base/auth_database.sql \
-  -o sql/base/postgresql/
+uv run mysql-to-postgres ../../sql/base/auth_database.sql \
+  ../../sql/base/postgresql/auth_database.sql
 
 # Convert characters database schema
-python3 contrib/postgres_tools/mysql_to_postgres_converter.py \
-  sql/base/characters_database.sql \
-  -o sql/base/postgresql/
+uv run mysql-to-postgres ../../sql/base/characters_database.sql \
+  ../../sql/base/postgresql/characters_database.sql
 ```
 
 ### Converting World Database (TDB)
@@ -299,10 +301,12 @@ python3 contrib/postgres_tools/mysql_to_postgres_converter.py \
 The TDB world database is large (~280 MB) and requires special handling:
 
 ```bash
+cd contrib/postgres_tools
+
 # Convert TDB dump (takes several minutes)
-python3 contrib/postgres_tools/mysql_to_postgres_converter.py \
+uv run mysql-to-postgres \
   ~/Repos/github.com/wowemulation-dev/TDB/335/25101_2025_10_21/TDB_full_world_335.25101_2025_10_21.sql \
-  -o sql/base/postgresql/ \
+  ../../sql/base/postgresql/TDB_full_world_335.sql \
   --debug
 ```
 
@@ -313,13 +317,18 @@ The `--debug` flag shows conversion progress and statistics.
 When new SQL updates are added, they need to be converted:
 
 ```bash
-# Convert a single update file
-python3 contrib/postgres_tools/mysql_to_postgres_converter.py \
-  sql/updates/world/2024_01_01_00_example.sql \
-  -o sql/updates/world/postgresql/
+cd contrib/postgres_tools
 
-# Convert all updates using the batch script
-./test-dev-environment.sh convert-sql
+# Convert a single update file
+uv run mysql-to-postgres \
+  ../../sql/updates/world/3.3.5/2024_01_01_00_example.sql \
+  ../../sql/updates/world/3.3.5/postgresql/2024_01_01_00_example.sql
+
+# Convert all world updates
+for f in ../../sql/updates/world/3.3.5/*.sql; do
+    name=$(basename "$f")
+    uv run mysql-to-postgres "$f" "../../sql/updates/world/3.3.5/postgresql/$name"
+done
 ```
 
 ### What the Converter Handles
@@ -367,16 +376,18 @@ rm -rf sql/base/postgresql/*.sql
 rm -rf sql/updates/*/postgresql/*.sql
 
 # 2. Convert base schemas
-python3 contrib/postgres_tools/mysql_to_postgres_converter.py \
-  sql/base/auth_database.sql -o sql/base/postgresql/
-python3 contrib/postgres_tools/mysql_to_postgres_converter.py \
-  sql/base/characters_database.sql -o sql/base/postgresql/
+cd contrib/postgres_tools
+uv run mysql-to-postgres ../../sql/base/auth_database.sql \
+  ../../sql/base/postgresql/auth_database.sql
+uv run mysql-to-postgres ../../sql/base/characters_database.sql \
+  ../../sql/base/postgresql/characters_database.sql
 
 # 3. Convert TDB world database
-python3 contrib/postgres_tools/mysql_to_postgres_converter.py \
+uv run mysql-to-postgres \
   ~/Repos/github.com/wowemulation-dev/TDB/335/25101_2025_10_21/TDB_full_world_335.25101_2025_10_21.sql \
-  -o sql/base/postgresql/ --debug
+  ../../sql/base/postgresql/TDB_full_world_335.sql --debug
 
 # 4. Convert all update files
+cd ../..
 ./test-dev-environment.sh convert-sql
 ```
