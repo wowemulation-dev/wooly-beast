@@ -69,13 +69,36 @@ def get_statement_keyword(sql: str) -> str:
     """
     Extract the first keyword from a SQL statement.
 
+    Skips leading comments (line and block) to find the actual SQL keyword.
+
     Args:
         sql: SQL statement
 
     Returns:
         Uppercase keyword, or empty string if none found
     """
-    match = KEYWORD_PATTERN.match(sql)
+    # Strip leading whitespace
+    text = sql.lstrip()
+
+    # Skip leading line comments and block comments
+    while text:
+        if text.startswith("--"):
+            # Skip to end of line
+            newline_pos = text.find("\n")
+            if newline_pos == -1:
+                return ""  # Comment only, no keyword
+            text = text[newline_pos + 1 :].lstrip()
+        elif text.startswith("/*"):
+            # Skip to end of block comment
+            end_pos = text.find("*/")
+            if end_pos == -1:
+                return ""  # Unclosed block comment
+            text = text[end_pos + 2 :].lstrip()
+        else:
+            break
+
+    # Now extract the keyword from the non-comment portion
+    match = KEYWORD_PATTERN.match(text)
     if match:
         return match.group(1).upper()
     return ""
