@@ -213,14 +213,27 @@ class TransformationStage(BasePipelineStage):
         # Remove backticks
         sql = remove_backticks(sql)
 
+        # Convert MySQL double-quoted strings to PostgreSQL single-quoted strings
+        # MySQL allows both 'string' and "string" for string literals
+        # PostgreSQL only uses single quotes for strings (double quotes are identifiers)
+        def convert_dquoted_string(match: re.Match[str]) -> str:
+            inner = match.group(1)
+            # Handle MySQL escaped double quotes (\") -> literal double quote
+            inner = inner.replace('\\"', '"')
+            # Escape any single quotes by doubling them (PostgreSQL style)
+            inner = inner.replace("'", "''")
+            return f"'{inner}'"
+
+        # Pattern matches double-quoted strings handling escape sequences
+        dquote_pattern = r'"((?:[^"\\]|\\.)*)"'
+        sql = re.sub(dquote_pattern, convert_dquoted_string, sql)
+
         # Convert escape sequences (inline, placeholder technique)
         # Protect escaped backslashes with placeholder
         placeholder = "\x00ESCAPED_BACKSLASH\x00"
         sql = sql.replace("\\\\", placeholder)
         # Convert escaped quotes: MySQL \' -> PostgreSQL ''
         sql = sql.replace("\\'", "''")
-        # Remove escaped double quotes: MySQL \" -> PostgreSQL "
-        sql = sql.replace('\\"', '"')
         # Restore escaped backslashes
         sql = sql.replace(placeholder, "\\\\")
 
@@ -253,6 +266,11 @@ class TransformationStage(BasePipelineStage):
         sql = re.sub(r"(\bUPDATE\s+.+?)\s+LIMIT\s+\d+", r"\1", sql, flags=re.IGNORECASE)
         sql = re.sub(r"(\bDELETE\s+.+?)\s+LIMIT\s+\d+", r"\1", sql, flags=re.IGNORECASE)
 
+        # Remove ORDER BY from UPDATE statements (MySQL-specific, not supported in PostgreSQL)
+        # MySQL allows ORDER BY in UPDATE for controlled row processing order
+        # PostgreSQL doesn't support this syntax
+        sql = re.sub(r"(\bUPDATE\s+[^;]+?)\s+ORDER\s+BY\s+[^;]+?(?=\s*;)", r"\1", sql, flags=re.IGNORECASE)
+
         # ON DUPLICATE KEY UPDATE -> ON CONFLICT DO UPDATE SET
         sql = re.sub(
             r"ON\s+DUPLICATE\s+KEY\s+UPDATE\s+(.+?)$",
@@ -260,6 +278,9 @@ class TransformationStage(BasePipelineStage):
             sql,
             flags=re.IGNORECASE,
         )
+
+        # Convert MySQL IFNULL to PostgreSQL COALESCE
+        sql = re.sub(r"\bIFNULL\s*\(", "COALESCE(", sql, flags=re.IGNORECASE)
 
         return sql
 
