@@ -28,7 +28,7 @@ dev = [
 
 [tool.ruff]
 target-version = "py312"
-line-length = 100
+line-length = 120  # Increased for regex patterns and SQL strings
 
 [tool.ruff.lint]
 select = [
@@ -50,6 +50,10 @@ ignore = [
     "PLR0911",  # too many return statements (tokenizer dispatch)
     "PLR0912",  # too many branches (complex regex patterns)
     "PLR0915",  # too many statements
+    "PLW2901",  # loop variable overwritten (intentional pattern)
+    "SIM108",   # ternary operator suggestion (prefer explicit if-else)
+    "PTH123",   # open() vs Path.open() (both valid)
+    "PLC0415",  # import at top-level (conditional import is intentional)
     "RUF022",   # __all__ sorting (prefer logical grouping)
 ]
 
