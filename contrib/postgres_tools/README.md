@@ -55,10 +55,6 @@ uv run mysql-to-postgres input.sql output.sql
 uv run mysql-to-postgres input.sql output.sql --debug
 ```
 
-### mysql_to_postgres_converter.py (legacy)
-
-Original regex-based converter. Use `mysql-to-postgres` CLI for new conversions.
-
 ### convert_updates.sh
 
 Batch converts MySQL update files to PostgreSQL format with progress tracking.
