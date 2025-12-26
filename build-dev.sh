@@ -23,6 +23,8 @@ usage() {
     echo "  --mysql       Build with MySQL backend (default if no option specified)"
     echo "  --postgresql  Build with PostgreSQL backend"
     echo "  --both        Build with both backends"
+    echo "  -j, --jobs N  Number of parallel jobs (default: $(nproc))"
+    echo "  -j all        Use all available CPU cores"
     echo "  --help        Show this help message"
     echo ""
     echo "Environment variables:"
@@ -46,6 +48,17 @@ while [[ $# -gt 0 ]]; do
             BUILD_MYSQL=1
             BUILD_POSTGRESQL=1
             shift
+            ;;
+        -j|--jobs)
+            if [[ "$2" == "all" ]]; then
+                JOBS="$(nproc)"
+            elif [[ "$2" =~ ^[0-9]+$ ]]; then
+                JOBS="$2"
+            else
+                echo "Error: -j requires a number or 'all'"
+                exit 1
+            fi
+            shift 2
             ;;
         --help|-h)
             usage
