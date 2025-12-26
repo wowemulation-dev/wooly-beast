@@ -10,7 +10,7 @@ set -e
 
 # Configuration
 BUILD_TYPE="${BUILD_TYPE:-Debug}"
-JOBS="${JOBS:-$(nproc)}"
+JOBS="${JOBS:-1}"  # Default to 1 for easier error reading
 BRANCH_SUFFIX="335"
 
 # Database backend selection
@@ -24,11 +24,13 @@ usage() {
     echo "  --mysql       Build with MySQL backend only (default)"
     echo "  --postgresql  Build with PostgreSQL backend only"
     echo "  --both        Build with both MySQL and PostgreSQL backends"
+    echo "  -j, --jobs N  Number of parallel jobs (default: 1)"
+    echo "  -j all        Use all available CPU cores"
     echo "  --help        Show this help message"
     echo ""
     echo "Environment variables:"
     echo "  BUILD_TYPE    CMake build type (default: Debug)"
-    echo "  JOBS          Number of parallel jobs (default: nproc)"
+    echo "  JOBS          Number of parallel jobs (default: 1)"
     echo "  BACKEND       Database backend: mysql, postgresql, both (default: mysql)"
     exit 0
 }
@@ -47,6 +49,17 @@ while [[ $# -gt 0 ]]; do
         --both)
             BACKEND="both"
             shift
+            ;;
+        -j|--jobs)
+            if [[ "$2" == "all" ]]; then
+                JOBS="$(nproc)"
+            elif [[ "$2" =~ ^[0-9]+$ ]]; then
+                JOBS="$2"
+            else
+                echo "Error: -j requires a number or 'all'"
+                exit 1
+            fi
+            shift 2
             ;;
         --help|-h)
             usage
