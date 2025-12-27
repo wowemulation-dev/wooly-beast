@@ -105,8 +105,8 @@ LoginDatabaseInfo     = "127.0.0.1;53556;trinity;trinity;trinity_auth"
 WorldDatabaseInfo     = "127.0.0.1;53558;trinity;trinity;trinity_world"
 CharacterDatabaseInfo = "127.0.0.1;53557;trinity;trinity;trinity_characters"
 
-# Client data location (relative to bin/ directory)
-DataDir = "../../build-client-data"
+# Client data location (relative to install directory)
+DataDir = "../build-client-data"
 
 # Disable automatic updates (PostgreSQL doesn't support the updater yet)
 Updates.EnableDatabases = 0
@@ -114,10 +114,13 @@ Updates.EnableDatabases = 0
 
 ## 6. Start Servers
 
+**Important:** Servers must be started from inside the `install-335-postgresql/` directory. The `DataDir` configuration uses relative paths (`../build-client-data`) that resolve correctly only when the working directory is the install folder.
+
 Start authserver in one terminal:
 
 ```bash
-cd install-335-postgresql/bin && ./authserver
+cd install-335-postgresql
+./bin/authserver
 ```
 
 Expected startup indicators:
@@ -128,7 +131,8 @@ Expected startup indicators:
 Start worldserver in another terminal:
 
 ```bash
-cd install-335-postgresql/bin && ./worldserver
+cd install-335-postgresql
+./bin/worldserver
 ```
 
 Expected startup indicators:
@@ -243,7 +247,7 @@ These should be fixed in the converter. Report issues with specific error messag
 
 ### Missing DBC/vmap Files
 
-- Verify DataDir path: should be `../../build-client-data` when running from `bin/`
+- Verify DataDir path: should be `../build-client-data` when running from install directory
 - Check `build-client-data/` contains `dbc/`, `maps/`, `vmaps/`
 
 ### Realm Not Showing in Client
