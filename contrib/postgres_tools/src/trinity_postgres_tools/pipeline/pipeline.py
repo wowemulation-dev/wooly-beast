@@ -140,8 +140,14 @@ class ConversionPipeline:
 
     def _assemble_output(self, ctx: ConversionContext) -> str:
         """Assemble final output from context."""
+        import re
+
         # Join statements with semicolons and newlines
-        statements = [s for s in ctx.output_statements if s.strip()]
+        # Filter empty statements and semicolon-only statements
+        statements = [
+            s for s in ctx.output_statements
+            if s.strip() and s.strip() != ";" and not re.match(r"^[;\s]*$", s)
+        ]
         if not statements:
             return ""
 

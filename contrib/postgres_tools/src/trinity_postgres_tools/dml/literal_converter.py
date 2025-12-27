@@ -41,17 +41,64 @@ def convert_hex_literals_in_sql(sql: str) -> str:
     """
     Convert all hex literals in SQL to PostgreSQL format.
 
+    This function is string-aware: hex literals inside single-quoted or
+    double-quoted strings are NOT converted, as they are text content,
+    not binary data.
+
+    For example:
+        0xDEADBEEF                -> decode('DEADBEEF', 'hex')
+        'Code injection at 0x40100A'  -> 'Code injection at 0x40100A' (unchanged)
+
     Args:
         sql: SQL containing MySQL hex literals
 
     Returns:
-        SQL with hex literals converted to decode() calls
+        SQL with hex literals converted to decode() calls (only outside strings)
     """
+    # Find all string literal spans to exclude them from conversion
+    # Pattern for single-quoted strings (handles '' escapes and \' escapes)
+    # Pattern for double-quoted strings (handles "" escapes and \" escapes)
+    string_spans: list[tuple[int, int]] = []
+
+    i = 0
+    while i < len(sql):
+        if sql[i] == "'" or sql[i] == '"':
+            quote_char = sql[i]
+            start = i
+            i += 1
+            # Find the end of the string
+            while i < len(sql):
+                if sql[i] == "\\" and i + 1 < len(sql):
+                    # Skip escaped character
+                    i += 2
+                elif sql[i] == quote_char:
+                    if i + 1 < len(sql) and sql[i + 1] == quote_char:
+                        # Escaped quote by doubling ('' or "")
+                        i += 2
+                    else:
+                        # End of string
+                        i += 1
+                        break
+                else:
+                    i += 1
+            string_spans.append((start, i))
+        else:
+            i += 1
+
+    def is_in_string(pos: int) -> bool:
+        """Check if position is inside a string literal."""
+        for start, end in string_spans:
+            if start <= pos < end:
+                return True
+        return False
+
     # Pattern matches 0x followed by hex digits
-    # Use word boundary to avoid matching in strings
     pattern = r"\b0[xX]([0-9a-fA-F]+)\b"
 
-    def replace_hex(match: re.Match) -> str:
+    def replace_hex(match: re.Match[str]) -> str:
+        # Only convert if not inside a string literal
+        if is_in_string(match.start()):
+            return match.group(0)  # Return unchanged
         hex_digits = match.group(1)
         return f"decode('{hex_digits}', 'hex')"
 
@@ -170,22 +217,26 @@ def convert_backticks_to_double_quotes(identifier: str) -> str:
 
 def remove_backticks(sql: str) -> str:
     """
-    Remove backtick quoting from identifiers.
+    Remove backtick quoting from identifiers and lowercase them.
 
-    For simple identifiers that don't need quoting, just remove backticks.
-    For reserved words or special characters, convert to double quotes.
+    PostgreSQL normalizes unquoted identifiers to lowercase. To ensure
+    consistency between DDL and DML, we lowercase all identifiers.
+
+    For simple identifiers that don't need quoting, just remove backticks
+    and lowercase. For reserved words or special characters, convert to
+    double quotes.
 
     Args:
         sql: SQL with backtick identifiers
 
     Returns:
-        SQL with backticks removed or converted
+        SQL with backticks removed/converted and identifiers lowercased
     """
-    # Simple approach: remove backticks when identifier is simple
     # Pattern matches backtick-quoted identifiers
     pattern = r"`([a-zA-Z_][a-zA-Z0-9_]*)`"
 
     def replace_backtick(match: re.Match) -> str:
-        return match.group(1)
+        # Lowercase the identifier for PostgreSQL consistency
+        return match.group(1).lower()
 
     return re.sub(pattern, replace_backtick, sql)
