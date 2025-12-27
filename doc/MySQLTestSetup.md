@@ -81,8 +81,8 @@ LoginDatabaseInfo     = "127.0.0.1;33506;trinity;trinity;trinity_auth"
 WorldDatabaseInfo     = "127.0.0.1;33508;trinity;trinity;trinity_world"
 CharacterDatabaseInfo = "127.0.0.1;33507;trinity;trinity;trinity_characters"
 
-# Client data location (relative to bin/ directory)
-DataDir = "../../build-client-data"
+# Client data location (relative to install directory)
+DataDir = "../build-client-data"
 
 # MySQL executable for automatic schema updates
 MySQLExecutable = "/usr/bin/mysql"
@@ -108,10 +108,13 @@ Recommended setup:
 
 The servers will automatically import base schemas from `sql/base/` on first run.
 
+**Important:** Servers must be started from inside the `install-335-mysql/` directory. The `DataDir` configuration uses relative paths (`../build-client-data`) that resolve correctly only when the working directory is the install folder.
+
 Start authserver in one terminal:
 
 ```bash
-cd install-335-mysql/bin && ./authserver
+cd install-335-mysql
+./bin/authserver
 ```
 
 On first run, authserver will:
@@ -133,7 +136,8 @@ ON DUPLICATE KEY UPDATE name='Trinity';
 Start worldserver in another terminal:
 
 ```bash
-cd install-335-mysql/bin && ./worldserver
+cd install-335-mysql
+./bin/worldserver
 ```
 
 On first run, worldserver will:
@@ -220,7 +224,7 @@ The 3.3.5 branch uses these ports:
 
 ### Missing DBC/vmap Files
 
-- Verify DataDir path: should be `../../build-client-data` when running from `bin/`
+- Verify DataDir path: should be `../build-client-data` when running from install directory
 - Check `build-client-data/` contains `dbc/`, `maps/`, `vmaps/`
 
 ### Realm Not Showing in Client
