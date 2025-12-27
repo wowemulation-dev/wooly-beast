@@ -10,6 +10,88 @@ Each stage implements a specific transformation step:
 
 import re
 
+
+def _lowercase_identifiers_outside_strings(sql: str) -> str:
+    """
+    Lowercase backtick and double-quoted identifiers, but only outside of
+    single-quoted SQL string literals.
+
+    This is critical for preserving text data that contains literal double
+    quotes, such as: INSERT INTO t VALUES ('He said "hello"');
+
+    The regex-based approach fails because it cannot distinguish between:
+    - "identifier" (PostgreSQL identifier, should be lowercased)
+    - 'text with "quotes"' (string content, must NOT be lowercased)
+
+    This function uses a state machine to track string boundaries.
+    """
+    result = []
+    i = 0
+    n = len(sql)
+
+    while i < n:
+        char = sql[i]
+
+        # Check for single-quoted string literal start
+        if char == "'":
+            # Find the end of the string literal
+            # Handle escaped quotes: '' (PostgreSQL/SQL standard) and \' (MySQL)
+            start = i
+            i += 1
+            while i < n:
+                if sql[i] == "'":
+                    # Check for escaped quote ('')
+                    if i + 1 < n and sql[i + 1] == "'":
+                        i += 2  # Skip both quotes
+                        continue
+                    else:
+                        # End of string
+                        i += 1
+                        break
+                elif sql[i] == "\\" and i + 1 < n:
+                    # Skip escaped character (MySQL style)
+                    i += 2
+                else:
+                    i += 1
+            # Append the entire string literal unchanged
+            result.append(sql[start:i])
+            continue
+
+        # Check for backtick-quoted identifier (MySQL style)
+        if char == "`":
+            start = i
+            i += 1
+            while i < n and sql[i] != "`":
+                i += 1
+            if i < n:
+                i += 1  # Include closing backtick
+            # Extract identifier and lowercase it
+            identifier = sql[start + 1 : i - 1] if i > start + 1 else ""
+            result.append(identifier.lower())
+            continue
+
+        # Check for double-quoted identifier (PostgreSQL style)
+        if char == '"':
+            start = i
+            i += 1
+            while i < n and sql[i] != '"':
+                if sql[i] == "\\" and i + 1 < n:
+                    i += 2  # Skip escaped character
+                else:
+                    i += 1
+            if i < n:
+                i += 1  # Include closing quote
+            # Extract identifier and lowercase it
+            identifier = sql[start + 1 : i - 1] if i > start + 1 else ""
+            result.append(identifier.lower())
+            continue
+
+        # Regular character - append as-is
+        result.append(char)
+        i += 1
+
+    return "".join(result)
+
 import sqlglot
 from sqlglot.errors import ParseError
 
@@ -17,6 +99,7 @@ from trinity_postgres_tools.dml.literal_converter import (
     convert_hex_literals_in_sql,
     remove_backticks,
 )
+from trinity_postgres_tools.dml.view_converter import process_views
 from trinity_postgres_tools.parsing.classifier import (
     classify_statement,
 )
@@ -36,6 +119,15 @@ class PreprocessingStage(BasePipelineStage):
     def process(self, ctx: ConversionContext) -> ConversionContext:
         """Remove mysqldump artifacts from the input."""
         sql = ctx.current_statement or ""
+
+        # Extract VIEW definitions BEFORE removing conditional comments
+        # Views are inside conditional comments and would be lost otherwise
+        sql, view_definitions = process_views(sql)
+        ctx.view_definitions = view_definitions
+
+        if view_definitions:
+            ctx.log_debug(f"Extracted {len(view_definitions)} VIEW definitions")
+
         ctx.current_statement = remove_mysqldump_artifacts(sql, ctx)
         return ctx
 
@@ -88,12 +180,44 @@ class TransformationStage(BasePipelineStage):
 
     def _convert_ddl(self, sql: str, ctx: ConversionContext) -> str:
         """Convert DDL using sqlglot with pre/post processing."""
-        sql = self._preprocess_ddl(sql)
+        # Extract leading comments before sqlglot processing
+        # sqlglot converts -- comments to /* */ and merges lines, breaking formatting
+        lines = sql.split("\n")
+        comment_lines = []
+        ddl_lines = []
+        in_ddl = False
+
+        for line in lines:
+            stripped = line.strip()
+            if not in_ddl:
+                # Check if this is a comment-only line
+                if stripped.startswith("--"):
+                    comment_lines.append(line)
+                elif stripped.startswith("/*") and stripped.endswith("*/") and ";" not in stripped:
+                    # Standalone block comment (not ending statement)
+                    comment_lines.append(line)
+                elif stripped == "":
+                    # Preserve blank lines in comment section
+                    if comment_lines:
+                        comment_lines.append(line)
+                else:
+                    # Start of actual DDL
+                    in_ddl = True
+                    ddl_lines.append(line)
+            else:
+                ddl_lines.append(line)
+
+        ddl_sql = "\n".join(ddl_lines)
+        ddl_sql = self._preprocess_ddl(ddl_sql)
 
         try:
-            results = sqlglot.transpile(sql, read="mysql", write="postgres")
+            results = sqlglot.transpile(ddl_sql, read="mysql", write="postgres")
             if results:
-                return self._postprocess_ddl(results[0])
+                converted = self._postprocess_ddl(results[0])
+                # Reassemble with comments preserved
+                if comment_lines:
+                    return "\n".join(comment_lines) + "\n" + converted
+                return converted
             return sql
         except ParseError as e:
             ctx.log_debug(f"sqlglot error on DDL: {e}")
@@ -152,12 +276,30 @@ class TransformationStage(BasePipelineStage):
         # Remove ASC/DESC from index columns
         sql = re.sub(r"(`\w+`)\s+(ASC|DESC)(?=\s*[,)])", r"\1", sql, flags=re.IGNORECASE)
 
+        # Remove ON UPDATE CURRENT_TIMESTAMP (MySQL-specific, requires trigger in PostgreSQL)
+        # This clause auto-updates a timestamp column when a row is modified
+        sql = re.sub(
+            r"\s+ON\s+UPDATE\s+CURRENT_TIMESTAMP(?:\s*\(\d*\))?",
+            "",
+            sql,
+            flags=re.IGNORECASE,
+        )
+
+        # Convert MEDIUMINT to INTEGER before sqlglot processing
+        sql = re.sub(r"\bMEDIUMINT\b", "INTEGER", sql, flags=re.IGNORECASE)
+
         return sql
 
     def _postprocess_ddl(self, sql: str) -> str:
         """Postprocess sqlglot output."""
-        # Remove backticks
-        sql = re.sub(r"`([^`]+)`", r"\1", sql)
+        # Remove backticks and lowercase identifiers for PostgreSQL consistency
+        # PostgreSQL normalizes unquoted identifiers to lowercase, so we must
+        # lowercase all identifiers to ensure DDL and DML match
+        sql = re.sub(r"`([^`]+)`", lambda m: m.group(1).lower(), sql)
+
+        # Lowercase double-quoted identifiers (sqlglot produces these)
+        # This ensures column names like "CreatureId" become "creatureid"
+        sql = re.sub(r'"([^"]+)"', lambda m: m.group(1).lower(), sql)
 
         # Fix sqlglot's unsigned types
         sql = re.sub(r"\bUTINYINT\b", "SMALLINT", sql, flags=re.IGNORECASE)
@@ -179,21 +321,27 @@ class TransformationStage(BasePipelineStage):
         # Fix BYTEA size modifier
         sql = re.sub(r"\bBYTEA\s*\(\d+\)", "BYTEA", sql, flags=re.IGNORECASE)
 
+        # Convert CHAR(n) to VARCHAR(n) to avoid PostgreSQL CHAR padding issues
+        # PostgreSQL pads CHAR columns with spaces to the declared length, which
+        # causes problems when comparing short strings (e.g., "OSX" becomes "OSX ")
+        sql = re.sub(r"\bCHAR\s*\((\d+)\)", r"VARCHAR(\1)", sql, flags=re.IGNORECASE)
+
         # Fix SMALLINT/TINYINT size specifier
         sql = re.sub(r"\bSMALLINT\s*\(\d+\)", "SMALLINT", sql, flags=re.IGNORECASE)
         sql = re.sub(r"\bTINYINT\s*\(\d+\)", "SMALLINT", sql, flags=re.IGNORECASE)
 
-        # Clean up constraint names
-        sql = re.sub(r'\bUNIQUE\s+"[^"]+"\s*\(', r"UNIQUE (", sql, flags=re.IGNORECASE)
-        sql = re.sub(r'\bCONSTRAINT\s+"[^"]+"\s+UNIQUE\s*\(', r"UNIQUE (", sql, flags=re.IGNORECASE)
+        # Clean up constraint names (handles both quoted and unquoted identifiers)
+        # UNIQUE "name" (col) or UNIQUE name (col) -> UNIQUE (col)
+        sql = re.sub(r'\bUNIQUE\s+(?:"[^"]+"|[a-z_][a-z0-9_]*)\s*\(', r"UNIQUE (", sql, flags=re.IGNORECASE)
+        sql = re.sub(r'\bCONSTRAINT\s+(?:"[^"]+"|[a-z_][a-z0-9_]*)\s+UNIQUE\s*\(', r"UNIQUE (", sql, flags=re.IGNORECASE)
 
-        # Remove inline INDEX/KEY definitions
-        sql = re.sub(r',\s*INDEX\s+"[^"]+"\s*\([^)]+\)', "", sql, flags=re.IGNORECASE)
-        sql = re.sub(r',\s*KEY\s+"[^"]+"\s*\([^)]+\)', "", sql, flags=re.IGNORECASE)
+        # Remove inline INDEX/KEY definitions (handles both quoted and unquoted identifiers)
+        sql = re.sub(r',\s*INDEX\s+(?:"[^"]+"|[a-z_][a-z0-9_]*)\s*\([^)]+\)', "", sql, flags=re.IGNORECASE)
+        sql = re.sub(r',\s*KEY\s+(?:"[^"]+"|[a-z_][a-z0-9_]*)\s*\([^)]+\)', "", sql, flags=re.IGNORECASE)
 
-        # Remove FOREIGN KEY constraints
+        # Remove FOREIGN KEY constraints (handles both quoted and unquoted identifiers)
         sql = re.sub(
-            r',\s*CONSTRAINT\s+"[^"]+"\s+FOREIGN\s+KEY\s*\([^)]+\)\s+REFERENCES\s+"[^"]+"\s*\([^)]+\)(?:\s+ON\s+(?:DELETE|UPDATE)\s+(?:CASCADE|RESTRICT|SET\s+NULL|NO\s+ACTION))*',
+            r',\s*CONSTRAINT\s+(?:"[^"]+"|[a-z_][a-z0-9_]*)\s+FOREIGN\s+KEY\s*\([^)]+\)\s+REFERENCES\s+(?:"[^"]+"|[a-z_][a-z0-9_]*)\s*\([^)]+\)(?:\s+ON\s+(?:DELETE|UPDATE)\s+(?:CASCADE|RESTRICT|SET\s+NULL|NO\s+ACTION))*',
             "",
             sql,
             flags=re.IGNORECASE,
@@ -203,8 +351,8 @@ class TransformationStage(BasePipelineStage):
         sql = re.sub(r"\s+USING\s+(?:BTREE|HASH)", "", sql, flags=re.IGNORECASE)
         sql = re.sub(r"\s+COLLATE\s+\w+", "", sql, flags=re.IGNORECASE)
 
-        # Remove FULLTEXT INDEX
-        sql = re.sub(r',\s*FULLTEXT\s+INDEX\s+"[^"]+"\s*\([^)]+\)', "", sql, flags=re.IGNORECASE)
+        # Remove FULLTEXT INDEX (handles both quoted and unquoted identifiers)
+        sql = re.sub(r',\s*FULLTEXT\s+INDEX\s+(?:"[^"]+"|[a-z_][a-z0-9_]*)\s*\([^)]+\)', "", sql, flags=re.IGNORECASE)
 
         return sql
 
@@ -257,7 +405,9 @@ class TransformationStage(BasePipelineStage):
                 return str(val - 4294967296)
             return match.group(0)
 
-        sql = re.sub(r"\b\d{10,}\b", convert_unsigned_to_signed, sql)
+        # Use negative lookbehind to skip already-negative numbers
+        # Without this, -2147483648 becomes --2147483648 (interpreted as SQL comment)
+        sql = re.sub(r"(?<!-)\b\d{10,}\b", convert_unsigned_to_signed, sql)
 
         # REPLACE INTO -> INSERT INTO
         sql = re.sub(r"\bREPLACE\s+INTO\b", "INSERT INTO", sql, flags=re.IGNORECASE)
@@ -318,11 +468,24 @@ class PostprocessingStage(BasePipelineStage):
         """Clean up any remaining issues."""
         cleaned = []
         for stmt in ctx.output_statements:
-            # Remove any remaining backticks
-            cleaned_stmt = re.sub(r"`([^`]+)`", r"\1", stmt)
+            # Remove any remaining backticks and lowercase identifiers
+            # Use string-aware processing to avoid corrupting quoted text content
+            cleaned_stmt = _lowercase_identifiers_outside_strings(stmt)
             # Clean up excessive whitespace
             cleaned_stmt = re.sub(r"\n\s*\n\s*\n", "\n\n", cleaned_stmt)
-            cleaned.append(cleaned_stmt.strip())
+            cleaned_stmt = cleaned_stmt.strip()
+            # Skip empty statements (just semicolons or whitespace)
+            if cleaned_stmt and cleaned_stmt != ";" and not re.match(r"^[;\s]*$", cleaned_stmt):
+                cleaned.append(cleaned_stmt)
+
+        # Append VIEW definitions at the end (views depend on tables)
+        if ctx.view_definitions:
+            # Add a section comment for views
+            cleaned.append("\n-- PostgreSQL VIEW definitions")
+            for view_stmt in ctx.view_definitions:
+                # View definitions are already converted by view_converter.py
+                cleaned.append(view_stmt)
+            ctx.log_debug(f"Added {len(ctx.view_definitions)} VIEW definitions to output")
 
         ctx.output_statements = cleaned
         return ctx
