@@ -115,6 +115,9 @@ class ConversionContext:
     table_names: list[str] = field(default_factory=list)
     auto_increment_columns: dict[str, list[str]] = field(default_factory=dict)
 
+    # Extracted view definitions (PostgreSQL format)
+    view_definitions: list[str] = field(default_factory=list)
+
     # Debug trace
     debug_log: list[str] = field(default_factory=list)
 
