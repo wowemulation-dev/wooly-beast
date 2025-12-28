@@ -170,18 +170,83 @@ def convert_file(
     )
 
 
+def convert_directory(
+    input_dir: str | Path,
+    output_dir: str | Path | None = None,
+    debug: bool = False,
+) -> dict[str, int]:
+    """
+    Convert all SQL files in a directory recursively.
+
+    Creates a 'postgresql' subdirectory in input_dir if output_dir is None.
+    Preserves directory structure.
+
+    Args:
+        input_dir: Path to directory containing MySQL SQL files
+        output_dir: Optional output directory (defaults to input_dir/postgresql)
+        debug: Enable debug output
+
+    Returns:
+        Dict with conversion statistics (total, success, failed)
+    """
+    input_path = Path(input_dir)
+    if output_dir:
+        output_path = Path(output_dir)
+    else:
+        output_path = input_path / "postgresql"
+
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    converter = MySQLToPostgreSQLConverter(debug=debug)
+    stats = {"total": 0, "success": 0, "failed": 0}
+
+    # Find all SQL files recursively, excluding postgresql subdirectory
+    sql_files = [
+        f for f in input_path.rglob("*.sql")
+        if "postgresql" not in f.parts
+    ]
+
+    for sql_file in sql_files:
+        stats["total"] += 1
+        # Compute relative path from input_dir
+        rel_path = sql_file.relative_to(input_path)
+        out_file = output_path / rel_path
+
+        # Create parent directories
+        out_file.parent.mkdir(parents=True, exist_ok=True)
+
+        try:
+            converter.convert_file(sql_file, out_file)
+            stats["success"] += 1
+            if debug:
+                print(f"Converted: {rel_path}", file=sys.stderr)
+        except Exception as e:
+            stats["failed"] += 1
+            print(f"Failed: {rel_path}: {e}", file=sys.stderr)
+
+    return stats
+
+
 def main() -> None:
     """CLI entry point."""
     parser = argparse.ArgumentParser(
         description="Convert MySQL schema to PostgreSQL for TrinityCore"
     )
-    parser.add_argument("input_file", help="Input MySQL SQL file")
+    parser.add_argument(
+        "input_file",
+        help="Input MySQL SQL file or directory (with -d/--directory)",
+    )
     parser.add_argument(
         "output_file",
         nargs="?",
-        help="Output PostgreSQL SQL file (optional, defaults to stdout)",
+        help="Output PostgreSQL SQL file or directory (optional)",
     )
     parser.add_argument("--debug", action="store_true", help="Enable debug output")
+    parser.add_argument(
+        "-d", "--directory",
+        action="store_true",
+        help="Convert all SQL files in directory recursively, creating postgresql/ subdirectory",
+    )
 
     args = parser.parse_args()
 
@@ -189,25 +254,44 @@ def main() -> None:
     output_path = Path(args.output_file) if args.output_file else None
 
     if not input_path.exists():
-        print(f"Error: Input file {input_path} does not exist", file=sys.stderr)
+        print(f"Error: Input path {input_path} does not exist", file=sys.stderr)
         sys.exit(1)
 
-    converter = MySQLToPostgreSQLConverter(debug=args.debug)
+    if args.directory:
+        # Directory conversion mode
+        if not input_path.is_dir():
+            print(f"Error: {input_path} is not a directory", file=sys.stderr)
+            sys.exit(1)
 
-    try:
-        result = converter.convert_file(input_path, output_path)
+        try:
+            stats = convert_directory(input_path, output_path, debug=args.debug)
+            print(f"Conversion complete: {stats['success']}/{stats['total']} files converted", file=sys.stderr)
+            if stats["failed"] > 0:
+                print(f"Failed: {stats['failed']} files", file=sys.stderr)
+                sys.exit(1)
+        except Exception as e:
+            print(f"Error converting directory: {e}", file=sys.stderr)
+            if args.debug:
+                traceback.print_exc()
+            sys.exit(1)
+    else:
+        # Single file conversion mode
+        converter = MySQLToPostgreSQLConverter(debug=args.debug)
 
-        if not output_path:
-            print(result)
+        try:
+            result = converter.convert_file(input_path, output_path)
 
-        if args.debug:
-            print(f"\nConversion stats: {converter.stats}", file=sys.stderr)
+            if not output_path:
+                print(result)
 
-    except Exception as e:
-        print(f"Error converting file: {e}", file=sys.stderr)
-        if args.debug:
-            traceback.print_exc()
-        sys.exit(1)
+            if args.debug:
+                print(f"\nConversion stats: {converter.stats}", file=sys.stderr)
+
+        except Exception as e:
+            print(f"Error converting file: {e}", file=sys.stderr)
+            if args.debug:
+                traceback.print_exc()
+            sys.exit(1)
 
 
 if __name__ == "__main__":
