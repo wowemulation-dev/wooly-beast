@@ -30,38 +30,56 @@ Expected output shows three containers:
 
 The script automatically creates databases and the `trinity` user.
 
-## 2. Import Base Schemas
+## 2. Schema Import Options
 
-Unlike MySQL, PostgreSQL requires manual schema import before the server can start.
+PostgreSQL supports two import methods: automatic (recommended) and manual.
 
-### Import Auth Database Schema
+### Option A: Automatic Import (Recommended)
+
+The TrinityCore servers can automatically import base schemas and apply updates on first run, just like MySQL. Each server is responsible for its own databases:
+
+- **authserver**: Manages the auth database only
+- **worldserver**: Manages characters and world databases only
+
+Configure auto-updates in the config files:
+
+```ini
+# In authserver.conf
+Updates.EnableDatabases = 1  # 1 = auth
+
+# In worldserver.conf
+Updates.EnableDatabases = 6  # 2 (characters) + 4 (world) = 6
+# Note: worldserver should NOT update auth (value 1)
+```
+
+**Important: Start authserver first** when using empty databases. The worldserver connects to the auth database for account validation, so the auth schema must exist before worldserver can start properly.
+
+On first startup with empty databases, the servers will:
+1. Detect empty databases
+2. Import base schemas from `sql/base/postgresql/`
+3. Apply any pending updates from `sql/updates/<db>/3.3.5/postgresql/`
+
+### Option B: Manual Import
+
+For debugging or when you need more control, import schemas manually:
 
 ```bash
+# Import auth database schema
 PGPASSWORD=trinity psql -h 127.0.0.1 -p 53556 -U trinity -d trinity_auth \
   < sql/base/postgresql/auth_database.sql
-```
 
-### Import Characters Database Schema
-
-```bash
+# Import characters database schema
 PGPASSWORD=trinity psql -h 127.0.0.1 -p 53557 -U trinity -d trinity_characters \
   < sql/base/postgresql/characters_database.sql
-```
 
-### Import World Database (TDB)
-
-The world database is large (~280 MB). Import the converted TDB dump:
-
-```bash
+# Import world database (TDB) - takes several minutes
 PGPASSWORD=trinity psql -h 127.0.0.1 -p 53558 -U trinity -d trinity_world \
   < sql/base/postgresql/TDB_full_world_335.sql
 ```
 
-This import takes several minutes due to the database size.
-
 ## 3. Add Realmlist Entry
 
-The realmlist entry must exist before clients can connect:
+The realmlist entry is added automatically when using auto-import. For manual imports:
 
 ```bash
 PGPASSWORD=trinity psql -h 127.0.0.1 -p 53556 -U trinity -d trinity_auth -c "
@@ -85,8 +103,11 @@ Edit `install-335-postgresql/etc/authserver.conf` and set:
 # Database connection (port 53556 for PostgreSQL 3.3.5 branch)
 LoginDatabaseInfo = "127.0.0.1;53556;trinity;trinity;trinity_auth"
 
-# Disable automatic updates (PostgreSQL doesn't support the updater yet)
-Updates.EnableDatabases = 0
+# Source directory for SQL files (required for auto-updates)
+SourceDirectory = "/path/to/wooly-beast"
+
+# Enable automatic updates (1 = auth database)
+Updates.EnableDatabases = 1
 ```
 
 ## 5. Configure worldserver
@@ -108,13 +129,22 @@ CharacterDatabaseInfo = "127.0.0.1;53557;trinity;trinity;trinity_characters"
 # Client data location (relative to install directory)
 DataDir = "../build-client-data"
 
-# Disable automatic updates (PostgreSQL doesn't support the updater yet)
-Updates.EnableDatabases = 0
+# Source directory for SQL files (required for auto-updates)
+SourceDirectory = "/path/to/wooly-beast"
+
+# Enable automatic updates (2 = characters, 4 = world, 6 = both)
+Updates.EnableDatabases = 6
+
+# Disable console for automated testing
+Console.Enable = 0
 ```
 
 ## 6. Start Servers
 
-**Important:** Servers must be started from inside the `install-335-postgresql/` directory. The `DataDir` configuration uses relative paths (`../build-client-data`) that resolve correctly only when the working directory is the install folder.
+**Important notes:**
+- Servers must be started from inside the `install-335-postgresql/` directory (DataDir uses relative paths)
+- **Start authserver first** and wait for it to complete database setup before starting worldserver
+- Each server handles its own databases - authserver updates auth, worldserver updates characters and world
 
 Start authserver in one terminal:
 
@@ -125,6 +155,8 @@ cd install-335-postgresql
 
 Expected startup indicators:
 - `DatabasePool 'trinity_auth' opened successfully`
+- `Database Auth is empty, auto populating it...` (first run only)
+- `Applied update "auth_database.sql" successfully`
 - `Added realm "Trinity" at 127.0.0.1:8085`
 - `Network: Started listening on 0.0.0.0:3724`
 
@@ -211,6 +243,14 @@ SELECT schemaname, COUNT(*) as tables FROM pg_tables WHERE schemaname = 'public'
 "
 ```
 
+### Check Update History
+
+```bash
+PGPASSWORD=trinity psql -h 127.0.0.1 -p 53556 -U trinity -d trinity_auth -c "
+SELECT state, COUNT(*) FROM updates GROUP BY state;
+"
+```
+
 ### Check World Database Content
 
 ```bash
@@ -259,6 +299,81 @@ These should be fixed in the converter. Report issues with specific error messag
 - Check authserver started without errors
 - Verify client `realmlist.wtf` points to `127.0.0.1`
 
+### "Dirty Files" Warning on Startup
+
+If you see warnings like "X dirty files applied to your database, but they are now missing", this means:
+- The `updates` table references files that don't exist in the expected path
+- Archived updates should be in `sql/old/3.3.5a/<db>/postgresql/`
+- Run the converter with `-d` flag to regenerate archived updates
+
+### Encoding Errors During Conversion
+
+If the converter fails with errors like `'utf-8' codec can't decode byte 0x92`, this indicates Windows-1252 encoding in the source file. Common issues:
+- Smart quotes (`'` → 0x92) instead of ASCII apostrophes (`'`)
+- Em dashes, ellipsis, or other Windows-specific characters
+
+Fix by editing the original MySQL file to use ASCII equivalents:
+- Replace smart quotes with standard apostrophes
+- For SQL strings, use `''` (two single quotes) to escape apostrophes
+
+## Update System Internals
+
+The TrinityCore update system tracks applied SQL files in two tables within each database.
+
+### The `updates` Table
+
+Tracks every SQL file that has been applied:
+
+```sql
+SELECT name, hash, state, speed FROM updates ORDER BY name LIMIT 5;
+```
+
+States:
+- `RELEASED` - Current updates in `sql/updates/<db>/3.3.5/postgresql/`
+- `ARCHIVED` - Historical updates in `sql/old/3.3.5a/<db>/postgresql/`
+
+### The `updates_include` Table
+
+Defines which directories the updater searches for SQL files:
+
+```sql
+SELECT * FROM updates_include;
+```
+
+PostgreSQL base schemas set these paths:
+- `$/sql/updates/<db>/3.3.5/postgresql` (state: RELEASED)
+- `$/sql/old/3.3.5a/<db>/postgresql` (state: ARCHIVED)
+
+The `$` is replaced with `SourceDirectory` from the config file.
+
+### How Update Discovery Works
+
+1. Server reads `updates_include` to find search directories
+2. For each directory, recursively finds `.sql` files
+3. Compares found files against `updates` table
+4. Applies any new files, recording them in `updates`
+5. Warns about "dirty" files (in `updates` but not on disk)
+
+For PostgreSQL, `UpdateFetcher.cpp` appends `/postgresql` to update paths automatically.
+
+### Code References
+
+The PostgreSQL update path logic is in `src/server/database/Updater/UpdateFetcher.cpp`:
+
+- Lines ~175-180: Sets update path to `/sql/updates/<db>/3.3.5/postgresql`
+- Lines ~198-202: Sets archive path to `/sql/old/3.3.5a/<db>/postgresql`
+
+Key preprocessor checks:
+```cpp
+#ifdef WITH_POSTGRESQL
+    // PostgreSQL uses subdirectory for SQL files
+    std::string archivePath = ... + "/postgresql";
+#else
+    // MySQL uses main directory
+    std::string archivePath = ...;
+#endif
+```
+
 ## Differences from MySQL Setup
 
 | Aspect | MySQL | PostgreSQL |
@@ -266,10 +381,12 @@ These should be fixed in the converter. Report issues with specific error messag
 | Base ports | 33506-33508 | 53556-53558 |
 | Client tool | `mysql` | `psql` |
 | Container prefix | `trinity-335-mysql-*` | `trinity-335-postgres-*` |
-| Schema import | Automatic on first run | Manual (required before server start) |
-| Auto-updates | Supported | Not yet supported |
+| Schema import | Automatic on first run | Automatic on first run |
+| Auto-updates | Supported | Supported |
 | Install directory | `install-335-mysql/` | `install-335-postgresql/` |
 | Identifier quoting | Backticks `` ` `` | Double quotes `"` |
+| Update paths | `sql/updates/<db>/3.3.5/` | `sql/updates/<db>/3.3.5/postgresql/` |
+| Archive paths | `sql/old/3.3.5a/<db>/` | `sql/old/3.3.5a/<db>/postgresql/` |
 
 ## SQL Conversion Process
 
@@ -284,56 +401,68 @@ cd contrib/postgres_tools
 uv sync
 ```
 
-### Converting Base Schema Files
-
-The base schema files (auth, characters) are small and convert quickly:
+### Converting Single Files
 
 ```bash
 cd contrib/postgres_tools
 
-# Convert auth database schema
-uv run mysql-to-postgres ../../sql/base/auth_database.sql \
-  ../../sql/base/postgresql/auth_database.sql
+# Convert a single file
+uv run mysql-to-postgres input.sql output.sql
 
-# Convert characters database schema
-uv run mysql-to-postgres ../../sql/base/characters_database.sql \
-  ../../sql/base/postgresql/characters_database.sql
+# With debug output
+uv run mysql-to-postgres input.sql output.sql --debug
 ```
 
-### Converting World Database (TDB)
+### Converting Directories
 
-The TDB world database is large (~280 MB) and requires special handling:
+The converter supports batch conversion of entire directories:
 
 ```bash
 cd contrib/postgres_tools
 
-# Convert TDB dump (takes several minutes)
-uv run mysql-to-postgres \
-  ~/Repos/github.com/wowemulation-dev/TDB/335/25101_2025_10_21/TDB_full_world_335.25101_2025_10_21.sql \
-  ../../sql/base/postgresql/TDB_full_world_335.sql \
-  --debug
+# Convert all SQL files in a directory (creates postgresql/ subdirectory)
+uv run mysql-to-postgres -d /path/to/sql/updates/auth/3.3.5
+
+# Result: /path/to/sql/updates/auth/3.3.5/postgresql/*.sql
 ```
 
-The `--debug` flag shows conversion progress and statistics.
+The `-d` flag:
+- Recursively finds all `.sql` files
+- Preserves directory structure in the output
+- Creates a `postgresql/` subdirectory automatically
+- Skips files already in `postgresql/` directories
 
-### Converting SQL Updates
+### Converting Archived Updates
 
-When new SQL updates are added, they need to be converted:
+To regenerate all archived updates for PostgreSQL:
 
 ```bash
 cd contrib/postgres_tools
 
-# Convert a single update file
-uv run mysql-to-postgres \
-  ../../sql/updates/world/3.3.5/2024_01_01_00_example.sql \
-  ../../sql/updates/world/3.3.5/postgresql/2024_01_01_00_example.sql
+# Convert auth archives
+uv run mysql-to-postgres -d ../../sql/old/3.3.5a/auth
 
-# Convert all world updates
-for f in ../../sql/updates/world/3.3.5/*.sql; do
-    name=$(basename "$f")
-    uv run mysql-to-postgres "$f" "../../sql/updates/world/3.3.5/postgresql/$name"
+# Convert characters archives
+uv run mysql-to-postgres -d ../../sql/old/3.3.5a/characters
+
+# Convert world archives
+uv run mysql-to-postgres -d ../../sql/old/3.3.5a/world
+
+# Convert TDB migration directories
+for dir in ../../sql/old/3.3.5a/TDB*/; do
+    uv run mysql-to-postgres -d "$dir"
 done
 ```
+
+Current file counts (as of initial conversion):
+
+| Directory | Files |
+|-----------|-------|
+| `sql/old/3.3.5a/auth/` | 121 |
+| `sql/old/3.3.5a/characters/` | 91 |
+| `sql/old/3.3.5a/world/` | 6,853 |
+| `sql/old/3.3.5a/TDB*/` | 4,550 |
+| **Total** | **11,615** |
 
 ### What the Converter Handles
 
@@ -356,19 +485,12 @@ The converter automatically transforms:
 | `COLLATE utf8mb4_*` | (removed) |
 | `ON DUPLICATE KEY UPDATE` | `ON CONFLICT DO UPDATE` |
 | `REPLACE INTO` | `INSERT ... ON CONFLICT DO UPDATE` |
-
-### Conversion Statistics Example
-
-When converting the TDB world database, the converter reports:
-
-```
-DEBUG: Converted data types in 186 CREATE TABLE statements
-DEBUG: Removed 208 column CHARACTER SET/COLLATE declarations
-DEBUG: Converted 7 UNIQUE KEY to UNIQUE constraints
-DEBUG: Removed 186 MySQL-specific clauses
-DEBUG: Converted 803 hex literals to decode() function calls
-DEBUG: Converted 328733 escaped single quotes
-```
+| `MODIFY COLUMN` | `ALTER COLUMN TYPE` |
+| `CHANGE column` | `RENAME COLUMN` + `ALTER COLUMN TYPE` |
+| `DROP PRIMARY KEY` | `DROP CONSTRAINT table_pkey` |
+| `RENAME TABLE` | `ALTER TABLE RENAME TO` |
+| `AFTER column` | (removed - PostgreSQL doesn't support column ordering) |
+| `CONVERT TO CHARACTER SET` | (removed - PostgreSQL uses database-level encoding) |
 
 ### Regenerating All PostgreSQL Files
 
@@ -377,7 +499,8 @@ To regenerate all PostgreSQL SQL files from scratch:
 ```bash
 # 1. Clean existing PostgreSQL SQL files
 rm -rf sql/base/postgresql/*.sql
-rm -rf sql/updates/*/postgresql/*.sql
+rm -rf sql/updates/*/3.3.5/postgresql/*.sql
+rm -rf sql/old/3.3.5a/*/postgresql/
 
 # 2. Convert base schemas
 cd contrib/postgres_tools
@@ -391,7 +514,16 @@ uv run mysql-to-postgres \
   ~/Repos/github.com/wowemulation-dev/TDB/335/25101_2025_10_21/TDB_full_world_335.25101_2025_10_21.sql \
   ../../sql/base/postgresql/TDB_full_world_335.sql --debug
 
-# 4. Convert all update files
-cd ../..
-./test-dev-environment.sh convert-sql
+# 4. Convert update directories
+uv run mysql-to-postgres -d ../../sql/updates/auth/3.3.5
+uv run mysql-to-postgres -d ../../sql/updates/characters/3.3.5
+uv run mysql-to-postgres -d ../../sql/updates/world/3.3.5
+
+# 5. Convert archived updates
+uv run mysql-to-postgres -d ../../sql/old/3.3.5a/auth
+uv run mysql-to-postgres -d ../../sql/old/3.3.5a/characters
+uv run mysql-to-postgres -d ../../sql/old/3.3.5a/world
+for dir in ../../sql/old/3.3.5a/TDB*/; do
+    uv run mysql-to-postgres -d "$dir"
+done
 ```
