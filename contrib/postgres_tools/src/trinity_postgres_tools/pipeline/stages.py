@@ -99,6 +99,7 @@ from trinity_postgres_tools.dml.literal_converter import (
     convert_hex_literals_in_sql,
     remove_backticks,
 )
+from trinity_postgres_tools.dml.user_variables import expand_user_variables
 from trinity_postgres_tools.dml.view_converter import process_views
 from trinity_postgres_tools.parsing.classifier import (
     classify_statement,
@@ -128,7 +129,16 @@ class PreprocessingStage(BasePipelineStage):
         if view_definitions:
             ctx.log_debug(f"Extracted {len(view_definitions)} VIEW definitions")
 
-        ctx.current_statement = remove_mysqldump_artifacts(sql, ctx)
+        sql = remove_mysqldump_artifacts(sql, ctx)
+
+        # Expand MySQL user variables (@VAR) inline BEFORE splitting
+        # This must happen before splitting because variable definitions and
+        # their usages are in separate statements.
+        # MySQL: SET @OGUID := 94047; INSERT INTO t VALUES (@OGUID);
+        # PostgreSQL: INSERT INTO t VALUES (94047);
+        sql = expand_user_variables(sql)
+
+        ctx.current_statement = sql
         return ctx
 
 
@@ -227,6 +237,114 @@ class TransformationStage(BasePipelineStage):
 
     def _preprocess_ddl(self, sql: str) -> str:
         """Preprocess DDL for sqlglot compatibility."""
+        # Handle MySQL ALTER TABLE ... DROP PRIMARY KEY
+        # PostgreSQL requires: ALTER TABLE ... DROP CONSTRAINT constraint_name
+        # For primary keys, the constraint name is typically tablename_pkey
+        def convert_drop_primary_key(m: re.Match[str]) -> str:
+            table_name = m.group(1).lower().strip('`"')
+            return f"ALTER TABLE {table_name} DROP CONSTRAINT IF EXISTS {table_name}_pkey"
+
+        sql = re.sub(
+            r"ALTER\s+TABLE\s+([`\"]?\w+[`\"]?)\s+DROP\s+PRIMARY\s+KEY",
+            convert_drop_primary_key,
+            sql,
+            flags=re.IGNORECASE,
+        )
+
+        # Remove AFTER column clause (MySQL-specific column positioning)
+        # PostgreSQL always adds columns at the end
+        sql = re.sub(
+            r"\s+AFTER\s+[`\"]?\w+[`\"]?(?=\s*[,;)]|\s*$)",
+            "",
+            sql,
+            flags=re.IGNORECASE,
+        )
+
+        # Remove FIRST keyword (MySQL-specific column positioning)
+        # PostgreSQL always adds columns at the end
+        sql = re.sub(
+            r"\s+FIRST(?=\s*[,;)]|\s*$)",
+            "",
+            sql,
+            flags=re.IGNORECASE,
+        )
+
+        # Convert RENAME TABLE old TO new → ALTER TABLE old RENAME TO new
+        sql = re.sub(
+            r"RENAME\s+TABLE\s+([`\"]?\w+[`\"]?)\s+TO\s+([`\"]?\w+[`\"]?)",
+            r"ALTER TABLE \1 RENAME TO \2",
+            sql,
+            flags=re.IGNORECASE,
+        )
+
+        # Remove ALTER TABLE ... CONVERT TO CHARACTER SET (PostgreSQL uses database-level encoding)
+        sql = re.sub(
+            r"ALTER\s+TABLE\s+[`\"]?\w+[`\"]?\s+CONVERT\s+TO\s+CHARACTER\s+SET\s+\w+(?:\s+COLLATE\s+\w+)?",
+            "-- Removed: CONVERT TO CHARACTER SET (PostgreSQL uses database-level encoding)",
+            sql,
+            flags=re.IGNORECASE,
+        )
+
+        # Handle ALTER TABLE ... MODIFY COLUMN col type → ALTER TABLE ... ALTER COLUMN col TYPE type
+        # This is a simplified conversion - full MODIFY COLUMN support would need more parsing
+        def convert_modify_column(m: re.Match[str]) -> str:
+            table = m.group(1).lower().strip('`"')
+            column = m.group(2).lower().strip('`"')
+            col_type = m.group(3).strip()
+            # Extract base type, removing NOT NULL, DEFAULT, etc. for TYPE clause
+            type_match = re.match(r"(\w+(?:\s*\([^)]+\))?)", col_type)
+            base_type = type_match.group(1) if type_match else col_type.split()[0]
+            return f"ALTER TABLE {table} ALTER COLUMN {column} TYPE {base_type}"
+
+        sql = re.sub(
+            r"ALTER\s+TABLE\s+([`\"]?\w+[`\"]?)\s+MODIFY\s+(?:COLUMN\s+)?([`\"]?\w+[`\"]?)\s+(.+?)(?=\s*[,;]|$)",
+            convert_modify_column,
+            sql,
+            flags=re.IGNORECASE,
+        )
+
+        # Handle ALTER TABLE ... CHANGE old_col new_col type → RENAME COLUMN + ALTER COLUMN TYPE
+        # This handles column renames with type changes
+        def convert_change_column(m: re.Match[str]) -> str:
+            table = m.group(1).lower().strip('`"')
+            old_col = m.group(2).lower().strip('`"')
+            new_col = m.group(3).lower().strip('`"')
+            col_type = m.group(4).strip()
+            # Extract base type for TYPE clause
+            type_match = re.match(r"(\w+(?:\s*\([^)]+\))?)", col_type)
+            base_type = type_match.group(1) if type_match else col_type.split()[0]
+            if old_col == new_col:
+                # No rename needed, just type change
+                return f"ALTER TABLE {table} ALTER COLUMN {new_col} TYPE {base_type}"
+            else:
+                # Both rename and type change
+                return f"ALTER TABLE {table} RENAME COLUMN {old_col} TO {new_col}; ALTER TABLE {table} ALTER COLUMN {new_col} TYPE {base_type}"
+
+        sql = re.sub(
+            r"ALTER\s+TABLE\s+([`\"]?\w+[`\"]?)\s+CHANGE\s+(?:COLUMN\s+)?([`\"]?\w+[`\"]?)\s+([`\"]?\w+[`\"]?)\s+(.+?)(?=\s*[,;]|$)",
+            convert_change_column,
+            sql,
+            flags=re.IGNORECASE,
+        )
+
+        # Remove column-level COMMENT (MySQL-specific, not in standard CREATE TABLE)
+        # PostgreSQL uses separate COMMENT ON COLUMN statements
+        sql = re.sub(
+            r"\s+COMMENT\s+'[^']*'",
+            "",
+            sql,
+            flags=re.IGNORECASE,
+        )
+
+        # Convert MySQL bitwise AND NOT operator (&~) to PostgreSQL syntax (& ~)
+        # MySQL: value&~4 means "value AND NOT 4" (clear bit 4)
+        # PostgreSQL: value & ~4 (needs space, ~ is unary NOT)
+        sql = re.sub(
+            r"&~(\d+)",
+            r"& ~\1",
+            sql,
+        )
+
         # Convert AUTO_INCREMENT to SERIAL
         sql = re.sub(
             r"(\w+)\s+(?:tiny|small|medium)?int\s*(?:\(\d+\))?\s+(?:unsigned\s+)?(?:NOT\s+NULL\s+)?AUTO_INCREMENT",
@@ -358,6 +476,8 @@ class TransformationStage(BasePipelineStage):
 
     def _convert_dml(self, sql: str, ctx: ConversionContext) -> str:
         """Convert DML using tokenizer and escape handling."""
+        # Note: User variable expansion is done in PreprocessingStage before splitting
+
         # Remove backticks
         sql = remove_backticks(sql)
 
@@ -388,6 +508,22 @@ class TransformationStage(BasePipelineStage):
         # Convert hex literals
         sql = convert_hex_literals_in_sql(sql)
 
+        # Convert MySQL bitwise AND NOT operator (&~) to PostgreSQL syntax (& ~)
+        # MySQL: value&~4 means "value AND NOT 4" (clear bit 4)
+        # PostgreSQL: value & ~4 (needs space, ~ is unary NOT)
+        sql = re.sub(r"&~(\d+)", r"& ~\1", sql)
+
+        # Convert bitwise AND in boolean context to explicit comparison
+        # MySQL: WHERE col & 1  (truthy if non-zero)
+        # PostgreSQL: WHERE (col & 1) <> 0  (requires explicit boolean)
+        # Match: WHERE col & N at end of clause (before ; or AND/OR or end of string)
+        sql = re.sub(
+            r"\bWHERE\s+(\w+)\s*&\s*(\d+)\s*(?=;|$)",
+            r"WHERE (\1 & \2) <> 0",
+            sql,
+            flags=re.IGNORECASE,
+        )
+
         # Convert unsigned overflow values (inline)
         # MySQL BIGINT UNSIGNED max (18446744073709551615) -> -1
         sql = sql.replace("18446744073709551615", "-1")
@@ -405,9 +541,11 @@ class TransformationStage(BasePipelineStage):
                 return str(val - 4294967296)
             return match.group(0)
 
-        # Use negative lookbehind to skip already-negative numbers
-        # Without this, -2147483648 becomes --2147483648 (interpreted as SQL comment)
-        sql = re.sub(r"(?<!-)\b\d{10,}\b", convert_unsigned_to_signed, sql)
+        # Use negative lookbehind/lookahead to skip:
+        # 1. Already-negative numbers (-2147483648 would become --2147483648)
+        # 2. Decimal parts of floats (2238.3603515625 - the 3603515625 is NOT an integer)
+        # 3. Integer parts of floats (must not have a dot after)
+        sql = re.sub(r"(?<![.\-])\b\d{10,}\b(?!\.)", convert_unsigned_to_signed, sql)
 
         # REPLACE INTO -> INSERT INTO
         sql = re.sub(r"\bREPLACE\s+INTO\b", "INSERT INTO", sql, flags=re.IGNORECASE)
@@ -416,10 +554,11 @@ class TransformationStage(BasePipelineStage):
         sql = re.sub(r"(\bUPDATE\s+.+?)\s+LIMIT\s+\d+", r"\1", sql, flags=re.IGNORECASE)
         sql = re.sub(r"(\bDELETE\s+.+?)\s+LIMIT\s+\d+", r"\1", sql, flags=re.IGNORECASE)
 
-        # Remove ORDER BY from UPDATE statements (MySQL-specific, not supported in PostgreSQL)
+        # Convert UPDATE ... ORDER BY to PostgreSQL DO block with cursor
         # MySQL allows ORDER BY in UPDATE for controlled row processing order
-        # PostgreSQL doesn't support this syntax
-        sql = re.sub(r"(\bUPDATE\s+[^;]+?)\s+ORDER\s+BY\s+[^;]+?(?=\s*;)", r"\1", sql, flags=re.IGNORECASE)
+        # PostgreSQL doesn't support this syntax, but order matters when updating
+        # primary key columns to avoid constraint violations
+        sql = self._convert_update_order_by(sql)
 
         # ON DUPLICATE KEY UPDATE -> ON CONFLICT DO UPDATE SET
         sql = re.sub(
@@ -433,6 +572,75 @@ class TransformationStage(BasePipelineStage):
         sql = re.sub(r"\bIFNULL\s*\(", "COALESCE(", sql, flags=re.IGNORECASE)
 
         return sql
+
+    def _convert_update_order_by(self, sql: str) -> str:
+        """Convert MySQL UPDATE ... ORDER BY to PostgreSQL DO block with cursor.
+
+        MySQL allows ORDER BY in UPDATE for controlled row processing order.
+        PostgreSQL doesn't support this syntax. When updating a column that's
+        part of a primary key or unique constraint, the order matters to avoid
+        constraint violations.
+
+        Converts:
+            UPDATE table SET col = expr ORDER BY col2 DESC;
+        To:
+            DO $$
+            DECLARE
+                rec RECORD;
+            BEGIN
+                FOR rec IN SELECT ctid FROM table ORDER BY col2 DESC
+                LOOP
+                    UPDATE table SET col = expr WHERE ctid = rec.ctid;
+                END LOOP;
+            END $$;
+        """
+        # Pattern to match UPDATE ... SET ... ORDER BY ...
+        # Handles both with and without WHERE clause
+        pattern = r"""
+            \bUPDATE\s+
+            (\w+)\s+                           # table name (group 1)
+            SET\s+
+            (.+?)                              # SET clause (group 2)
+            (?:\s+WHERE\s+(.+?))?              # optional WHERE clause (group 3)
+            \s+ORDER\s+BY\s+
+            (.+?)                              # ORDER BY clause (group 4)
+            (?=\s*;|\s*$)                      # lookahead for semicolon or end
+        """
+
+        match = re.search(pattern, sql, flags=re.IGNORECASE | re.VERBOSE | re.DOTALL)
+        if not match:
+            return sql
+
+        table_name = match.group(1)
+        set_clause = match.group(2).strip()
+        where_clause = match.group(3)
+        order_by_clause = match.group(4).strip()
+
+        # Build the SELECT statement for the cursor
+        select_sql = f"SELECT ctid FROM {table_name}"
+        if where_clause:
+            select_sql += f" WHERE {where_clause.strip()}"
+        select_sql += f" ORDER BY {order_by_clause}"
+
+        # Build the UPDATE statement inside the loop
+        update_sql = f"UPDATE {table_name} SET {set_clause} WHERE ctid = rec.ctid"
+        if where_clause:
+            # The WHERE from original is already applied in SELECT,
+            # but we add it here for correctness (ctid already filters)
+            pass  # ctid is unique, no need to repeat WHERE
+
+        # Generate PostgreSQL DO block
+        do_block = f"""DO $$
+DECLARE
+    rec RECORD;
+BEGIN
+    FOR rec IN {select_sql}
+    LOOP
+        {update_sql};
+    END LOOP;
+END $$"""
+
+        return do_block
 
     def _convert_other(self, sql: str, ctx: ConversionContext) -> str:
         """Convert other statements."""
