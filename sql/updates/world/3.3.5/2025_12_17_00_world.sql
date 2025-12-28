@@ -20,9 +20,9 @@ UPDATE `spell_target_position` SET `PositionX` = 403.462, `PositionY` = -67.8334
 UPDATE `spell_target_position` SET `PositionX` = 335.024, `PositionY` =   -83.21, `PositionZ` =  20.388, `VerifiedBuild` = 26365 WHERE `ID` = 34287;
 UPDATE `spell_target_position` SET `PositionX` = 384.251, `PositionY` = -84.3709, `PositionZ` =   20.18, `VerifiedBuild` = 26365 WHERE `ID` = 34288;
 UPDATE `spell_target_position` SET `PositionX` = 359.997, `PositionY` = -92.7042, `PositionZ` = 20.0127, `VerifiedBuild` = 26365 WHERE `ID` = 34289;
-UPDATE `spell_target_position` SET `PositionX` = 241.768, `PositionY` =  24.8276, `PositionY` = 20.3438, `VerifiedBuild` = 26365 WHERE `ID` = 34314;
-UPDATE `spell_target_position` SET `PositionX` = 239.111, `PositionY` = -1.59108, `PositionY` = 27.0491, `VerifiedBuild` = 26365 WHERE `ID` = 34315;
-UPDATE `spell_target_position` SET `PositionX` = 241.073, `PositionY` = -27.0846, `PositionY` = 20.1794, `VerifiedBuild` = 26365 WHERE `ID` = 34316;
+UPDATE `spell_target_position` SET `PositionX` = 241.768, `PositionY` =  24.8276, `PositionZ` = 20.3438, `VerifiedBuild` = 26365 WHERE `ID` = 34314;
+UPDATE `spell_target_position` SET `PositionX` = 239.111, `PositionY` = -1.59108, `PositionZ` = 27.0491, `VerifiedBuild` = 26365 WHERE `ID` = 34315;
+UPDATE `spell_target_position` SET `PositionX` = 241.073, `PositionY` = -27.0846, `PositionZ` = 20.1794, `VerifiedBuild` = 26365 WHERE `ID` = 34316;
 
 -- Ashtongue Ruse
 UPDATE `spell_dbc` SET `ProcChance` = 101, `Effect1` = 6, `EffectImplicitTargetA1` = 1, `EffectApplyAuraName1` = 4, `DmgMultiplier1` = 1 WHERE `Id` = 39555;
