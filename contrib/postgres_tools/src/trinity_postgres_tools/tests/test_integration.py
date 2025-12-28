@@ -44,12 +44,17 @@ class TestPipelineIntegration:
         assert "''" in result  # Escaped quote as doubled quote
 
     def test_insert_with_hex_literal(self):
-        """Convert hex literals to decode()."""
+        """Convert hex literals to integers.
+
+        0xDEADBEEF = 3735928559 (unsigned), but since this exceeds
+        INT_MAX (2147483647), it's converted to signed: -559038737
+        """
         mysql = "INSERT INTO test VALUES (1, 0xDEADBEEF);"
         pipeline = create_default_pipeline()
         result = pipeline.convert(mysql)
 
-        assert "decode('DEADBEEF', 'hex')" in result
+        # Hex is converted to integer, then unsigned->signed conversion applies
+        assert "-559038737" in result
 
     def test_mixed_ddl_dml(self):
         """Convert mixed DDL and DML statements."""

@@ -2,9 +2,13 @@
 MySQL literal conversion for DML statements.
 
 This module handles conversion of MySQL-specific literals:
-- Hex literals: 0xDEADBEEF → decode('DEADBEEF', 'hex')
+- Hex literals: 0xDEADBEEF → 3735928559 (integer)
 - Unsigned integer overflow values
 - Binary string notation
+
+Note: In TrinityCore's SQL, hex literals are primarily used for integer
+flag/mask values (e.g., unit_flags = 0x02000000). We convert them to
+decimal integers for PostgreSQL compatibility.
 """
 
 import re
@@ -12,16 +16,20 @@ import re
 
 def convert_hex_literal(hex_value: str) -> str:
     """
-    Convert MySQL hex literal to PostgreSQL decode() function.
+    Convert MySQL hex literal to PostgreSQL integer.
 
-    MySQL: 0xDEADBEEF
-    PostgreSQL: decode('DEADBEEF', 'hex')
+    MySQL: 0xDEADBEEF (used as integer in value contexts)
+    PostgreSQL: 3735928559 (decimal integer)
+
+    In TrinityCore SQL, hex literals are used for flags/masks which are
+    stored in integer columns. PostgreSQL doesn't auto-convert hex to int,
+    so we convert explicitly to decimal.
 
     Args:
         hex_value: MySQL hex literal (e.g., '0xDEADBEEF')
 
     Returns:
-        PostgreSQL decode() call
+        Decimal integer string
     """
     if not hex_value.lower().startswith("0x"):
         return hex_value
@@ -31,29 +39,31 @@ def convert_hex_literal(hex_value: str) -> str:
 
     # Handle empty hex
     if not hex_digits:
-        return "decode('', 'hex')"
+        return "0"
 
-    # Return PostgreSQL format
-    return f"decode('{hex_digits}', 'hex')"
+    # Convert hex to integer
+    int_value = int(hex_digits, 16)
+    return str(int_value)
 
 
 def convert_hex_literals_in_sql(sql: str) -> str:
     """
-    Convert all hex literals in SQL to PostgreSQL format.
+    Convert all hex literals in SQL to decimal integers.
 
     This function is string-aware: hex literals inside single-quoted or
     double-quoted strings are NOT converted, as they are text content,
     not binary data.
 
     For example:
-        0xDEADBEEF                -> decode('DEADBEEF', 'hex')
-        'Code injection at 0x40100A'  -> 'Code injection at 0x40100A' (unchanged)
+        0x02000000                    -> 33554432
+        0xDEADBEEF                    -> 3735928559
+        'Code injection at 0x40100A' -> 'Code injection at 0x40100A' (unchanged)
 
     Args:
         sql: SQL containing MySQL hex literals
 
     Returns:
-        SQL with hex literals converted to decode() calls (only outside strings)
+        SQL with hex literals converted to decimal integers (only outside strings)
     """
     # Find all string literal spans to exclude them from conversion
     # Pattern for single-quoted strings (handles '' escapes and \' escapes)
@@ -100,7 +110,9 @@ def convert_hex_literals_in_sql(sql: str) -> str:
         if is_in_string(match.start()):
             return match.group(0)  # Return unchanged
         hex_digits = match.group(1)
-        return f"decode('{hex_digits}', 'hex')"
+        # Convert to decimal integer
+        int_value = int(hex_digits, 16)
+        return str(int_value)
 
     return re.sub(pattern, replace_hex, sql)
 
