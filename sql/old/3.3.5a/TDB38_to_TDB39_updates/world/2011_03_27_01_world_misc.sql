@@ -66,7 +66,7 @@ INSERT INTO `pool_template` (`entry`,`max_limit`,`description`) VALUES
 (@Pool+1,1, 'Dalaran Books: Violet Citadel Lower'),
 (@Pool+2,1, 'Dalaran Books: Threads of Fate'),
 (@Pool+3,1, 'Dalaran Books: Ledgerdemain Lounge Upstairs'),
-(@Pool+4,1, 'Dalaran Books: Visitor’s Center'),
+(@Pool+4,1, 'Dalaran Books: Visitor''s Center'),
 (@Pool+5,1, 'Dalaran Books: Violet Citadel Upstairs'),
 (@Pool+6,1, 'Dalaran Books: Violet Hold'),
 (@Pool+7,1, 'Dalaran Books: Ledgerdemain Lounge Lower');
