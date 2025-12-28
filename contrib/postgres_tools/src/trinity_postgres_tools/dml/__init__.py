@@ -21,6 +21,11 @@ from trinity_postgres_tools.dml.tokenizer import (
     TokenType,
     tokenize,
 )
+from trinity_postgres_tools.dml.user_variables import (
+    expand_user_variables,
+    get_variable_definitions,
+    has_user_variables,
+)
 
 __all__ = [
     # Tokenizer
@@ -41,4 +46,8 @@ __all__ = [
     "convert_charset_introducer",
     "convert_backticks_to_double_quotes",
     "remove_backticks",
+    # User variables
+    "expand_user_variables",
+    "get_variable_definitions",
+    "has_user_variables",
 ]
