@@ -347,6 +347,7 @@ function reset_postgres_databases() {
     if podman container exists "${POSTGRES_AUTH_CONTAINER}"; then
         echo "Resetting PostgreSQL auth database..."
         podman exec "${POSTGRES_AUTH_CONTAINER}" psql -U "${DB_USER}" -d postgres -c "
+            SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'auth' AND pid <> pg_backend_pid();
             DROP DATABASE IF EXISTS auth;
             CREATE DATABASE auth OWNER ${DB_USER};" 2>/dev/null || echo "Warning: Could not reset PostgreSQL auth database"
     fi
@@ -355,6 +356,7 @@ function reset_postgres_databases() {
     if podman container exists "${POSTGRES_CHAR_CONTAINER}"; then
         echo "Resetting PostgreSQL characters database..."
         podman exec "${POSTGRES_CHAR_CONTAINER}" psql -U "${DB_USER}" -d postgres -c "
+            SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'characters' AND pid <> pg_backend_pid();
             DROP DATABASE IF EXISTS characters;
             CREATE DATABASE characters OWNER ${DB_USER};" 2>/dev/null || echo "Warning: Could not reset PostgreSQL characters database"
     fi
@@ -363,6 +365,7 @@ function reset_postgres_databases() {
     if podman container exists "${POSTGRES_WORLD_CONTAINER}"; then
         echo "Resetting PostgreSQL world database..."
         podman exec "${POSTGRES_WORLD_CONTAINER}" psql -U "${DB_USER}" -d postgres -c "
+            SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'world' AND pid <> pg_backend_pid();
             DROP DATABASE IF EXISTS world;
             CREATE DATABASE world OWNER ${DB_USER};" 2>/dev/null || echo "Warning: Could not reset PostgreSQL world database"
     fi
@@ -371,6 +374,7 @@ function reset_postgres_databases() {
     if podman container exists "${POSTGRES_HOTFIX_CONTAINER}"; then
         echo "Resetting PostgreSQL hotfixes database..."
         podman exec "${POSTGRES_HOTFIX_CONTAINER}" psql -U "${DB_USER}" -d postgres -c "
+            SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'hotfixes' AND pid <> pg_backend_pid();
             DROP DATABASE IF EXISTS hotfixes;
             CREATE DATABASE hotfixes OWNER ${DB_USER};" 2>/dev/null || echo "Warning: Could not reset PostgreSQL hotfixes database"
     fi
