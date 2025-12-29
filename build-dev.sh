@@ -9,7 +9,7 @@
 set -e
 
 # Configuration
-BUILD_TYPE="${BUILD_TYPE:-Debug}"
+BUILD_TYPE="${BUILD_TYPE:-RelWithDebInfo}"
 JOBS="${JOBS:-1}"  # Default to 1 for easier error reading
 BRANCH_SUFFIX="335"
 
@@ -102,6 +102,8 @@ build_backend() {
     cmake -S . -B "${build_dir}" \
         -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
         -DCMAKE_INSTALL_PREFIX="${install_dir}" \
+        -DBUILD_SHARED_LIBS=ON \
+        -DWITH_DYNAMIC_LINKING=ON \
         -DWITH_WARNINGS=ON \
         -DWITH_COREDEBUG=ON \
         -DBUILD_TESTING=ON \
@@ -109,7 +111,7 @@ build_backend() {
         -DUSE_SCRIPTPCH=ON \
         -DSERVERS=ON \
         -DTOOLS=ON \
-        -DSCRIPTS=static \
+        -DSCRIPTS=dynamic \
         -DWITH_POSTGRESQL="${with_postgresql}"
 
     # Build
