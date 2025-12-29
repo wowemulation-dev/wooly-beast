@@ -3,7 +3,7 @@
 > **Linux/Unix Installation**: Complete guide for building TrinityCore on Linux
 > systems
 >
-> **Documentation Notice**: For the most up-to-date installation information,
+> **Documentation Notice**: For current installation information,
 > check the [TrinityCore Wiki](https://trinitycore.info/).
 
 ---
@@ -556,7 +556,7 @@ tail -f ~/server/logs/*.log
 
 ### Official Documentation
 
-- **[TrinityCore Wiki](https://trinitycore.info/)** - Comprehensive documentation
+- **[TrinityCore Wiki](https://trinitycore.info/)** - Documentation
 - **[Installation Requirements](https://trinitycore.info/en/install/requirements)** - Detailed requirements
 - **[Server Setup Guide](https://trinitycore.atlassian.net/wiki/spaces/tc/pages/10977409/Server+Setup)** - Post-installation configuration
 

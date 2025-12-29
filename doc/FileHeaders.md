@@ -100,7 +100,7 @@ When creating a new file, **always start with the appropriate header**:
 
 When modifying files that don't have headers:
 
-1. **Add the header** at the very top of the file
+1. **Add the header** at the top of the file
 1. **Leave a blank line** after the header
 1. **Continue with existing includes/code**
 
@@ -195,7 +195,7 @@ public:
 
 ---
 
-## Best Practices
+## Guidelines
 
 ### Do's
 
