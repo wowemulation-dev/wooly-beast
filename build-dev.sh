@@ -9,7 +9,7 @@
 set -e
 
 # Default settings
-BUILD_TYPE="${BUILD_TYPE:-Debug}"
+BUILD_TYPE="${BUILD_TYPE:-RelWithDebInfo}"
 JOBS="${JOBS:-$(nproc)}"
 BUILD_MYSQL=0
 BUILD_POSTGRESQL=0
@@ -28,7 +28,7 @@ usage() {
     echo "  --help        Show this help message"
     echo ""
     echo "Environment variables:"
-    echo "  BUILD_TYPE    CMake build type (default: Debug)"
+    echo "  BUILD_TYPE    CMake build type (default: RelWithDebInfo)"
     echo "  JOBS          Parallel build jobs (default: $(nproc))"
     exit 0
 }
@@ -97,6 +97,8 @@ build_backend() {
     cmake -S . -B "${BUILD_DIR}" \
         -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
         -DCMAKE_INSTALL_PREFIX="${INSTALL_DIR}" \
+        -DBUILD_SHARED_LIBS=ON \
+        -DWITH_DYNAMIC_LINKING=ON \
         -DWITH_POSTGRESQL="${WITH_POSTGRESQL}" \
         -DWITH_WARNINGS=ON \
         -DWITH_COREDEBUG=ON \
@@ -105,7 +107,7 @@ build_backend() {
         -DUSE_SCRIPTPCH=ON \
         -DSERVERS=ON \
         -DTOOLS=ON \
-        -DSCRIPTS=static
+        -DSCRIPTS=dynamic
 
     # Build
     cmake --build "${BUILD_DIR}" -j "${JOBS}"
