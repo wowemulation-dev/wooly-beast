@@ -331,7 +331,7 @@ PGPASSWORD=trinity psql -h 127.0.0.1 -p 53558 -U trinity -d trinity_world \
 
 | Component | Test Type | Priority | Status |
 |-----------|-----------|----------|--------|
-| SQL Converter | Unit tests | High | [x] 220 tests passed |
+| SQL Converter | Unit tests | High | [x] 254 tests passed |
 | SQL Converter | Syntax validation | High | [x] All files validate |
 | Data import | Schema import | High | [x] Automatic import works |
 | Data parity | Row counts | High | [x] 239 tables match |
@@ -500,6 +500,24 @@ PGPASSWORD=trinity psql -h 127.0.0.1 -p 53558 -U trinity -d trinity_world -c "SE
 1. **Reserved word quoting** - MySQL double-quoted strings were being processed AFTER backtick-to-identifier conversion, causing identifiers like `"type"` to become `'type'` (string literals). Fixed by reordering: convert double-quoted strings first, then convert backticks.
 
 2. **PostprocessingStage identifier handling** - The `_lowercase_identifiers_outside_strings` function was stripping double quotes from reserved words. Fixed to preserve quotes for words in `SQL_RESERVED_KEYWORDS`.
+
+3. **BYTEA column hex literal conversion** - Tables with BYTEA columns (`build_auth_key`, `build_executable_hash`, `warden_checks`) had hex literals (e.g., `0x66FC5E09...`) incorrectly converted to integers instead of `decode('hex', 'hex')` format. Fixed by implementing a table exception list in `bytea_tables.py` that identifies BYTEA columns and converts hex literals to `decode()` before generic hex-to-integer conversion runs. The order of operations is critical: BYTEA conversion must precede generic hex conversion.
+
+4. **INSERT statement detection with leading comments** - The BYTEA converter used `re.match()` which only matches at string start. SQL statements from the splitter include leading comments (e.g., `-- Dumping data...\n\nINSERT INTO...`), causing the pattern to fail. Fixed by using `re.search()` to find INSERT anywhere in the statement.
+
+### BYTEA Table Configuration
+
+Tables with binary/BYTEA columns require special handling during SQL conversion. The configuration file `contrib/postgres_tools/src/trinity_postgres_tools/config/bytea_tables.py` defines these tables:
+
+```python
+BYTEA_COLUMNS = {
+    "build_auth_key": ["key"],
+    "build_executable_hash": ["executablehash"],
+    "warden_checks": ["data", "result"],
+}
+```
+
+When adding new tables with binary columns, update this configuration to ensure hex literals convert to `decode('hex', 'hex')` format instead of integers.
 
 ### Remaining Work
 
