@@ -227,6 +227,21 @@ def convert_backticks_to_double_quotes(identifier: str) -> str:
     return identifier
 
 
+# SQL reserved keywords that need to stay double-quoted in PostgreSQL
+# These are common SQL keywords used as column/table names in TrinityCore
+SQL_RESERVED_KEYWORDS = frozenset({
+    "all", "and", "any", "array", "as", "asc", "between", "by", "case",
+    "check", "column", "constraint", "create", "cross", "current", "default",
+    "delete", "desc", "distinct", "drop", "else", "end", "exists", "false",
+    "fetch", "for", "foreign", "from", "full", "grant", "group", "having",
+    "in", "index", "inner", "insert", "into", "is", "join", "key", "left",
+    "like", "limit", "natural", "not", "null", "offset", "on", "or", "order",
+    "outer", "primary", "references", "right", "select", "set", "table",
+    "then", "to", "true", "type", "union", "unique", "update", "using",
+    "values", "when", "where", "with",
+})
+
+
 def remove_backticks(sql: str) -> str:
     """
     Remove backtick quoting from identifiers and lowercase them.
@@ -235,8 +250,7 @@ def remove_backticks(sql: str) -> str:
     consistency between DDL and DML, we lowercase all identifiers.
 
     For simple identifiers that don't need quoting, just remove backticks
-    and lowercase. For reserved words or special characters, convert to
-    double quotes.
+    and lowercase. For reserved words, convert to double quotes.
 
     Args:
         sql: SQL with backtick identifiers
@@ -248,7 +262,10 @@ def remove_backticks(sql: str) -> str:
     pattern = r"`([a-zA-Z_][a-zA-Z0-9_]*)`"
 
     def replace_backtick(match: re.Match) -> str:
-        # Lowercase the identifier for PostgreSQL consistency
-        return match.group(1).lower()
+        name = match.group(1).lower()
+        # Reserved keywords need to stay quoted in PostgreSQL
+        if name in SQL_RESERVED_KEYWORDS:
+            return f'"{name}"'
+        return name
 
     return re.sub(pattern, replace_backtick, sql)
