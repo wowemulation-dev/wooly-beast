@@ -3,7 +3,7 @@
 > **Note**: This documentation may not always be up-to-date. For the latest
 > information, check the [TrinityCore Wiki](https://trinitycore.info/).
 >
-> **Advanced Guide**: For comprehensive scripting documentation, visit the
+> **Advanced Guide**: For scripting documentation, visit the
 > [TrinityCore Wiki Scripting Section](https://trinitycore.atlassian.net/wiki/spaces/tc/pages/2130344/Scripting).
 
 ---
@@ -456,7 +456,7 @@ ASSERT(player);
 
 ---
 
-## Best Practices
+## Guidelines
 
 ### Code Quality
 
@@ -532,8 +532,8 @@ void AddCustomScripts()
 
 ## Important Notes
 
-> **Documentation Status**: This guide provides basic scripting information. For the most current and comprehensive scripting documentation, always refer to the [TrinityCore Wiki](https://trinitycore.atlassian.net/wiki/spaces/tc/pages/2130344/Scripting).
+> **Documentation Status**: This guide provides basic scripting information. For current scripting documentation, refer to the [TrinityCore Wiki](https://trinitycore.atlassian.net/wiki/spaces/tc/pages/2130344/Scripting).
 >
-> **Learning Path**: Start with simple creature scripts before attempting complex spell or instance scripts. Study existing scripts in the codebase to understand best practices.
+> **Learning Path**: Start with simple creature scripts before attempting complex spell or instance scripts. Study existing scripts in the codebase to understand conventions.
 >
 > **Server Stability**: Always test scripts thoroughly on a development server before deploying to production. Poorly written scripts can crash the server or cause data corruption.

@@ -55,7 +55,7 @@ Logging levels in order of severity:
 
 | Level | Value | Use Case | Example |
 |-------|-------|----------|---------|
-| **TRACE** | 1 | Very detailed debugging | Function entry/exit |
+| **TRACE** | 1 | Detailed debugging | Function entry/exit |
 | **DEBUG** | 2 | Development debugging | Variable values |
 | **INFO** | 3 | General information | Server startup events |
 | **WARN** | 4 | Warning conditions | Deprecated features |
@@ -217,7 +217,7 @@ Logger.server = 2,Debug                     # Server: DEBUG level, debug file on
 
 ### Example 2: Production Setup
 
-**Goal**: Minimal console output, comprehensive file logging
+**Goal**: Minimal console output, full file logging
 
 ```ini
 # Appenders

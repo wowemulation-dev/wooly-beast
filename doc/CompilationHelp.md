@@ -32,7 +32,7 @@ mkdir build && cd build
 <details>
 <summary><strong>Recreate Build Directory</strong></summary>
 
-Start with a completely fresh build directory:
+Start with a fresh build directory:
 
 ```bash
 # Remove and recreate build directory
@@ -156,7 +156,7 @@ cmake ../ -DCMAKE_BUILD_TYPE=Release
 **Solutions**:
 
 ```bash
-# Clean rebuild (most common fix)
+# Clean rebuild (common fix)
 rm -rf build/
 mkdir build && cd build
 cmake ../ -DCMAKE_INSTALL_PREFIX=../install

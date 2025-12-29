@@ -280,7 +280,7 @@ ON DUPLICATE KEY UPDATE value = 14;
 
 ---
 
-## Best Practices
+## Guidelines
 
 ### When to Run Cleanup
 
@@ -326,7 +326,7 @@ UPDATE worldstates SET value = 0 WHERE entry = 20004;
 ### SQL Commands
 
 ```sql
--- Enable comprehensive cleanup
+-- Enable full cleanup
 UPDATE worldstates SET value = 14 WHERE entry = 20004;
 
 -- Check current setting
