@@ -465,3 +465,360 @@ class TestComplexScenarios:
         assert "INSERT INTO creature_template VALUES" in result
         # The escaped quote should be converted
         assert "''" in result or "Zul" in result
+
+
+class TestCombinedConversionIssues:
+    """
+    Integration tests for combinations of known conversion issues.
+
+    These tests verify that multiple conversion fixes don't interfere with
+    each other. Each test combines 2+ conversion features that could potentially
+    have side effects when applied together.
+
+    Known conversion areas that can interact:
+    1. BYTEA hex conversion (hex → decode())
+    2. Generic hex-to-integer conversion (hex → signed int)
+    3. Reserved word quoting (backticks → double quotes)
+    4. String escape handling (\\' → '')
+    5. Comment preservation (mysqldump comments)
+    6. Identifier lowercasing
+    7. ON DUPLICATE KEY UPDATE conversion
+    8. REPLACE INTO conversion
+    """
+
+    def test_bytea_with_leading_comments(self):
+        """BYTEA conversion must work with mysqldump-style leading comments.
+
+        Bug: re.match() only matches at string start, but SQL statements from
+        the splitter include leading comments. Fixed by using re.search().
+        """
+        mysql = """--
+-- Dumping data for table `build_auth_key`
+--
+
+INSERT INTO `build_auth_key` VALUES
+(25549,'Mac','x64','WoW',0x66FC5E09B8706126795F140308C8C1D8);"""
+        pipeline = create_default_pipeline()
+        result = pipeline.convert(mysql)
+
+        # Must use decode() for BYTEA, not integer
+        assert "decode('66FC5E09B8706126795F140308C8C1D8', 'hex')" in result
+        # Table name should be unquoted (not reserved)
+        assert "INSERT INTO build_auth_key VALUES" in result
+
+    def test_bytea_with_reserved_word_table(self):
+        """BYTEA conversion combined with reserved word table name.
+
+        Ensures BYTEA detection works regardless of identifier quoting.
+        """
+        # warden_checks has BYTEA columns (data, result)
+        mysql = """INSERT INTO `warden_checks` (`id`, `type`, `data`, `result`) VALUES
+(1, 1, 0xDEADBEEF, 0xCAFEBABE);"""
+        pipeline = create_default_pipeline()
+        result = pipeline.convert(mysql)
+
+        # Both hex values should use decode() since they're BYTEA columns
+        assert "decode('DEADBEEF', 'hex')" in result
+        assert "decode('CAFEBABE', 'hex')" in result
+
+    def test_bytea_and_integer_hex_in_same_statement(self):
+        """BYTEA hex conversion must not affect integer hex columns.
+
+        build_auth_key has 'key' as BYTEA, but 'build' is INTEGER.
+        A hex value in a non-BYTEA column should become an integer.
+        """
+        # Synthetic test: if build were hex (it's not in real data)
+        mysql = """INSERT INTO `build_auth_key` (`build`, `platform`, `arch`, `type`, `key`) VALUES
+(0x1234, 'Mac', 'x64', 'WoW', 0x66FC5E09B8706126795F140308C8C1D8);"""
+        pipeline = create_default_pipeline()
+        result = pipeline.convert(mysql)
+
+        # 'key' column should use decode()
+        assert "decode('66FC5E09B8706126795F140308C8C1D8', 'hex')" in result
+        # 'build' column (INTEGER) should be converted to integer: 0x1234 = 4660
+        assert "4660" in result
+
+    def test_reserved_word_column_with_escape_sequence(self):
+        """Reserved word column name combined with string escapes.
+
+        Ensures identifier quoting doesn't interfere with string handling.
+        Note: 'rank' is a window function, not a reserved word - doesn't need quoting.
+        """
+        mysql = """INSERT INTO `test_table` (`id`, `type`, `group`, `comment`) VALUES
+(1, 'warrior', 'team1', 'Zul\\'Farrak Hero');"""
+        pipeline = create_default_pipeline()
+        result = pipeline.convert(mysql)
+
+        # Reserved words should be quoted
+        assert '"type"' in result
+        assert '"group"' in result
+        # Escaped quote should be doubled
+        assert "Zul''Farrak" in result
+
+    def test_reserved_word_in_create_table_with_default(self):
+        """Reserved word column with DEFAULT value containing special chars.
+
+        Tests interaction between DDL conversion and string handling.
+        Note: 'rank' is a window function, not a reserved word - doesn't need quoting.
+        """
+        mysql = """CREATE TABLE `test` (
+  `id` INT NOT NULL,
+  `type` VARCHAR(50) DEFAULT 'user\\'s type',
+  `order` INT DEFAULT 0,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB;"""
+        pipeline = create_default_pipeline()
+        result = pipeline.convert(mysql)
+
+        # Reserved words should be quoted
+        assert '"type"' in result
+        assert '"order"' in result
+        # Engine should be removed
+        assert "ENGINE" not in result
+        # Default string should have doubled quote
+        assert "''" in result
+
+    def test_on_duplicate_key_with_reserved_words(self):
+        """ON DUPLICATE KEY UPDATE with reserved word columns.
+
+        Tests UPSERT conversion combined with identifier quoting.
+        """
+        mysql = """INSERT INTO `test_table` (`id`, `type`, `group`, `value`) VALUES (1, 'a', 'b', 100)
+ON DUPLICATE KEY UPDATE `type` = VALUES(`type`), `group` = VALUES(`group`);"""
+        pipeline = create_default_pipeline()
+        result = pipeline.convert(mysql)
+
+        # Should convert to ON CONFLICT
+        assert "ON CONFLICT" in result or "UPSERT" in result.upper() or "DO UPDATE" in result
+        # Reserved words should be quoted
+        assert '"type"' in result
+        assert '"group"' in result
+
+    def test_replace_into_with_hex_and_escapes(self):
+        """REPLACE INTO with hex literal and escape sequences.
+
+        Tests REPLACE conversion combined with literal conversion.
+        Note: REPLACE INTO becomes INSERT INTO (without ON CONFLICT).
+        """
+        mysql = """REPLACE INTO `test_table` (`id`, `flags`, `name`) VALUES
+(1, 0xFF, 'Test\\'s Entry');"""
+        pipeline = create_default_pipeline()
+        result = pipeline.convert(mysql)
+
+        # REPLACE becomes INSERT INTO (without ON CONFLICT clause)
+        assert "INSERT INTO" in result
+        assert "REPLACE" not in result
+        # Hex should be integer: 0xFF = 255
+        assert "255" in result
+        # Escaped quote should be doubled
+        assert "''" in result
+
+    def test_multi_statement_with_mixed_issues(self):
+        """Multiple statements with different conversion requirements.
+
+        Tests that pipeline handles statement boundaries correctly and
+        applies appropriate conversions to each statement type.
+        """
+        mysql = """-- DDL statement
+CREATE TABLE `order` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `type` VARCHAR(50) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB;
+
+-- DML with escapes
+INSERT INTO `order` (`id`, `type`) VALUES (1, 'Zul\\'Farrak Order');
+
+-- DML with hex
+INSERT INTO `flags_table` (`id`, `flags`) VALUES (1, 0xDEADBEEF);"""
+        pipeline = create_default_pipeline()
+        result = pipeline.convert(mysql)
+
+        # DDL: Reserved word table quoted, AUTO_INCREMENT converted
+        assert 'CREATE TABLE "order"' in result
+        assert '"type"' in result
+        assert "SERIAL" in result or "IDENTITY" in result
+        assert "ENGINE" not in result
+
+        # First INSERT: escaped quote
+        assert "Zul''Farrak" in result
+
+        # Second INSERT: hex to integer
+        assert "-559038737" in result  # 0xDEADBEEF as signed
+
+    def test_bytea_table_with_multiple_binary_columns(self):
+        """BYTEA table with multiple binary columns in same INSERT.
+
+        warden_checks has both 'data' and 'result' as BYTEA.
+        """
+        mysql = """INSERT INTO `warden_checks` (`id`, `type`, `data`, `result`, `address`) VALUES
+(1, 1, 0xAABBCCDD, 0x11223344, 0x9999);"""
+        pipeline = create_default_pipeline()
+        result = pipeline.convert(mysql)
+
+        # Both BYTEA columns should use decode()
+        assert "decode('AABBCCDD', 'hex')" in result
+        assert "decode('11223344', 'hex')" in result
+        # Non-BYTEA column (address is actually an integer) should be integer
+        # 0x9999 = 39321
+        assert "39321" in result
+
+    def test_full_mysqldump_section(self):
+        """Complete mysqldump section with all typical elements.
+
+        Tests the full pipeline with realistic mysqldump output including
+        comments, conditional execution, LOCK/UNLOCK, and data.
+        """
+        mysql = """--
+-- Table structure for table `build_auth_key`
+--
+
+DROP TABLE IF EXISTS `build_auth_key`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `build_auth_key` (
+  `build` int NOT NULL,
+  `platform` char(4) NOT NULL,
+  `arch` char(4) NOT NULL,
+  `type` char(4) NOT NULL,
+  `key` binary(16) NOT NULL,
+  PRIMARY KEY (`build`,`platform`,`arch`,`type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `build_auth_key`
+--
+
+LOCK TABLES `build_auth_key` WRITE;
+/*!40000 ALTER TABLE `build_auth_key` DISABLE KEYS */;
+INSERT INTO `build_auth_key` VALUES
+(25549,'Mac','x64','WoW',0x66FC5E09B8706126795F140308C8C1D8),
+(25549,'Win','x64','WoW',0x1252624ED8CBD6FAC7D33F5D67A535F3);
+/*!40000 ALTER TABLE `build_auth_key` ENABLE KEYS */;
+UNLOCK TABLES;"""
+        pipeline = create_default_pipeline()
+        result = pipeline.convert(mysql)
+
+        # Conditional comments removed
+        assert "/*!" not in result
+
+        # LOCK/UNLOCK removed
+        assert "LOCK TABLES" not in result
+        assert "UNLOCK TABLES" not in result
+
+        # DDL converted
+        assert "CREATE TABLE" in result
+        assert "ENGINE" not in result
+        assert "CHARSET" not in result
+        # Reserved word 'type' quoted
+        assert '"type"' in result
+
+        # DML: BYTEA hex values converted
+        assert "decode('66FC5E09B8706126795F140308C8C1D8', 'hex')" in result
+        assert "decode('1252624ED8CBD6FAC7D33F5D67A535F3', 'hex')" in result
+
+    def test_double_quoted_string_vs_identifier(self):
+        """MySQL double-quoted strings must not become identifiers.
+
+        Bug: MySQL allows double quotes for strings. The converter must
+        convert these to single quotes before backtick-to-double-quote
+        conversion, otherwise "value" becomes an identifier.
+        """
+        mysql = """UPDATE `creature` SET `StringId` = "captain_garrick" WHERE `guid` = 1;"""
+        pipeline = create_default_pipeline()
+        result = pipeline.convert(mysql)
+
+        # Double-quoted string should become single-quoted
+        assert "'captain_garrick'" in result
+        # Should not become an identifier (double-quoted)
+        assert '"captain_garrick"' not in result
+
+    def test_identifier_case_with_reserved_words(self):
+        """Identifier lowercasing must preserve reserved word quoting.
+
+        Bug: The lowercase function was stripping quotes from reserved words.
+        Note: 'rank' is not a reserved word in PostgreSQL, only 'order' and 'type' are.
+        """
+        mysql = """SELECT `Order`.`ID`, `Order`.`Type`, `Order`.`Group`
+FROM `Order` WHERE `Order`.`ID` = 1;"""
+        pipeline = create_default_pipeline()
+        result = pipeline.convert(mysql)
+
+        # Reserved words should be quoted and lowercased
+        assert '"order"' in result.lower()
+        assert '"type"' in result.lower()
+        assert '"group"' in result.lower()
+
+    def test_insert_without_column_list_bytea(self):
+        """INSERT without column list into BYTEA table.
+
+        Tests that BYTEA converter can identify column positions by table
+        schema when no explicit column list is provided.
+        """
+        mysql = """INSERT INTO `build_executable_hash` VALUES
+(5875, 'OSX', 0x8D173CC381961EEBABF336F5E6675B101BB513E5);"""
+        pipeline = create_default_pipeline()
+        result = pipeline.convert(mysql)
+
+        # Third column (index 2) is executablehash (BYTEA)
+        assert "decode('8D173CC381961EEBABF336F5E6675B101BB513E5', 'hex')" in result
+
+    def test_empty_hex_literal(self):
+        """Empty hex literal (0x) edge case.
+
+        Tests handling of edge case hex values.
+        """
+        mysql = """INSERT INTO `test_table` VALUES (1, 0x, 'test');"""
+        pipeline = create_default_pipeline()
+        result = pipeline.convert(mysql)
+
+        # Should handle gracefully - empty hex becomes empty string or 0
+        assert "INSERT INTO test_table VALUES" in result
+
+    def test_comments_between_statements(self):
+        """Comments between statements preserved and don't break parsing.
+
+        Tests that SQL comment handling works with the splitter.
+        """
+        mysql = """-- First insert
+INSERT INTO `test` VALUES (1);
+-- Second insert with special chars: Zul'Farrak
+INSERT INTO `test` VALUES (2);
+/* Block comment */
+INSERT INTO `test` VALUES (3);"""
+        pipeline = create_default_pipeline()
+        result = pipeline.convert(mysql)
+
+        # All three inserts should be present
+        assert result.count("INSERT INTO test VALUES") == 3
+
+    def test_update_with_hex_and_reserved_words(self):
+        """UPDATE statement with hex values and reserved word columns.
+
+        Note: 'rank' is not a reserved word, only 'type' and 'group' are.
+        """
+        mysql = """UPDATE `test_table` SET `type` = 'warrior', `group` = 'team1', `flags` = 0xFF
+WHERE `id` = 1;"""
+        pipeline = create_default_pipeline()
+        result = pipeline.convert(mysql)
+
+        # Reserved words quoted
+        assert '"type"' in result
+        assert '"group"' in result
+        # Hex to integer: 0xFF = 255
+        assert "255" in result
+
+    def test_delete_with_reserved_word_table(self):
+        """DELETE from table with reserved word name.
+
+        Note: 'rank' is not a reserved word, only 'order', 'type', and 'group' are.
+        """
+        mysql = """DELETE FROM `order` WHERE `type` = 'cancelled' AND `group` = 'team1';"""
+        pipeline = create_default_pipeline()
+        result = pipeline.convert(mysql)
+
+        # All reserved words quoted
+        assert 'DELETE FROM "order"' in result
+        assert '"type"' in result
+        assert '"group"' in result

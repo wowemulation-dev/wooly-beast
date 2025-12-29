@@ -103,6 +103,7 @@ def _lowercase_identifiers_outside_strings(sql: str) -> str:
 import sqlglot
 from sqlglot.errors import ParseError
 
+from trinity_postgres_tools.dml.bytea_converter import convert_bytea_hex_in_insert
 from trinity_postgres_tools.dml.literal_converter import (
     convert_hex_literals_in_sql,
     remove_backticks,
@@ -731,7 +732,11 @@ class TransformationStage(BasePipelineStage):
         # Restore escaped backslashes
         sql = sql.replace(placeholder, "\\\\")
 
-        # Convert hex literals
+        # Convert hex literals in BYTEA columns to decode() format FIRST
+        # This must happen before generic hex conversion, which converts to integers
+        sql = convert_bytea_hex_in_insert(sql)
+
+        # Convert remaining hex literals to integers (for flags/masks)
         sql = convert_hex_literals_in_sql(sql)
 
         # Convert MySQL bitwise AND NOT operator (&~) to PostgreSQL syntax (& ~)
