@@ -822,3 +822,162 @@ WHERE `id` = 1;"""
         assert 'DELETE FROM "order"' in result
         assert '"type"' in result
         assert '"group"' in result
+
+
+class TestDDLFallbackConversion:
+    """
+    Tests for DDL fallback conversion when sqlglot fails to parse.
+
+    Some CREATE TABLE statements have complex syntax that causes sqlglot to
+    fail parsing. The fallback path uses regex-based conversions to handle
+    these cases. These tests ensure the fallback produces valid PostgreSQL.
+    """
+
+    def test_access_requirement_with_charset_collate(self):
+        """Convert access_requirement table that triggers sqlglot ParseError.
+
+        This is a real table from TDB that has columns with CHARACTER SET
+        and COLLATE clauses that sqlglot cannot parse.
+        """
+        mysql = """CREATE TABLE `access_requirement` (
+  `mapId` int unsigned NOT NULL,
+  `difficulty` tinyint unsigned NOT NULL DEFAULT '0',
+  `level_min` tinyint unsigned NOT NULL DEFAULT '0',
+  `level_max` tinyint unsigned NOT NULL DEFAULT '0',
+  `item` int unsigned NOT NULL DEFAULT '0',
+  `item2` int unsigned NOT NULL DEFAULT '0',
+  `quest_done_A` int unsigned NOT NULL DEFAULT '0',
+  `quest_done_H` int unsigned NOT NULL DEFAULT '0',
+  `completed_achievement` int unsigned NOT NULL DEFAULT '0',
+  `quest_failed_text` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `comment` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  PRIMARY KEY (`mapId`,`difficulty`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"""
+        pipeline = create_default_pipeline()
+        result = pipeline.convert(mysql)
+
+        # Table should be created
+        assert "CREATE TABLE" in result
+        # MySQL syntax should be removed
+        assert "ENGINE" not in result
+        assert "CHARACTER SET" not in result.upper()
+        assert "COLLATE" not in result.upper()
+        assert "UNSIGNED" not in result.upper()
+        # Types should be converted
+        assert "INTEGER" in result  # int unsigned -> INTEGER
+        assert "SMALLINT" in result  # tinyint unsigned -> SMALLINT
+        assert "TEXT" in result  # mediumtext -> TEXT
+
+    def test_achievement_reward_with_charset_collate(self):
+        """Convert achievement_reward table that triggers sqlglot ParseError.
+
+        Another real TDB table with CHARACTER SET/COLLATE syntax.
+        """
+        mysql = """CREATE TABLE `achievement_reward` (
+  `ID` int unsigned NOT NULL DEFAULT '0',
+  `TitleA` int unsigned NOT NULL DEFAULT '0',
+  `TitleH` int unsigned NOT NULL DEFAULT '0',
+  `ItemID` int unsigned NOT NULL DEFAULT '0',
+  `Sender` int unsigned NOT NULL DEFAULT '0',
+  `Subject` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `Body` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `MailTemplateID` int unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`ID`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"""
+        pipeline = create_default_pipeline()
+        result = pipeline.convert(mysql)
+
+        # Table should be created
+        assert "CREATE TABLE" in result
+        # MySQL syntax should be removed
+        assert "ENGINE" not in result
+        assert "CHARACTER SET" not in result.upper()
+        assert "COLLATE" not in result.upper()
+        assert "UNSIGNED" not in result.upper()
+        # Types should be converted
+        assert "INTEGER" in result  # int unsigned -> INTEGER
+        assert "TEXT" in result  # mediumtext -> TEXT
+        assert "VARCHAR" in result  # varchar preserved
+
+    def test_ddl_fallback_converts_all_mysql_types(self):
+        """Verify DDL fallback converts all MySQL-specific types.
+
+        Uses syntax that will trigger fallback to verify type conversion.
+        """
+        mysql = """CREATE TABLE `test_types` (
+  `id` bigint unsigned NOT NULL,
+  `small_val` smallint unsigned NOT NULL,
+  `tiny_val` tinyint unsigned NOT NULL,
+  `medium_val` mediumint unsigned NOT NULL,
+  `text_col` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `longtext_col` longtext CHARACTER SET utf8mb4,
+  `tinytext_col` tinytext CHARACTER SET utf8mb4,
+  `blob_col` mediumblob,
+  `longblob_col` longblob,
+  `datetime_col` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB;"""
+        pipeline = create_default_pipeline()
+        result = pipeline.convert(mysql)
+
+        # All types should be converted
+        assert "BIGINT" in result
+        assert "TEXT" in result  # mediumtext, longtext, tinytext all become TEXT
+        assert "BYTEA" in result  # mediumblob, longblob become BYTEA
+        # MySQL-specific syntax removed
+        assert "ENGINE" not in result
+        assert "CHARACTER SET" not in result.upper()
+        assert "UNSIGNED" not in result.upper()
+
+    def test_ddl_fallback_removes_index_definitions(self):
+        """Verify DDL fallback removes inline INDEX/KEY definitions."""
+        mysql = """CREATE TABLE `test_indices` (
+  `id` int unsigned NOT NULL,
+  `value` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  PRIMARY KEY (`id`),
+  KEY `idx_value` (`value`),
+  INDEX `idx_id` (`id`),
+  FULLTEXT KEY `ft_value` (`value`)
+) ENGINE=InnoDB;"""
+        pipeline = create_default_pipeline()
+        result = pipeline.convert(mysql)
+
+        # Table should be created
+        assert "CREATE TABLE" in result
+        # Inline indices should be removed
+        assert "KEY `idx" not in result
+        assert "INDEX `idx" not in result
+        assert "FULLTEXT" not in result
+
+    def test_ddl_fallback_handles_double_precision(self):
+        """Verify DOUBLE becomes DOUBLE PRECISION."""
+        mysql = """CREATE TABLE `test_double` (
+  `id` int unsigned NOT NULL,
+  `rate` double CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `value` float(10,2),
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB;"""
+        pipeline = create_default_pipeline()
+        result = pipeline.convert(mysql)
+
+        # DOUBLE should become DOUBLE PRECISION
+        assert "double precision" in result.lower() or "DOUBLE PRECISION" in result
+        # MySQL syntax removed
+        assert "ENGINE" not in result
+
+    def test_ddl_fallback_preserves_primary_key(self):
+        """Verify DDL fallback preserves PRIMARY KEY definition."""
+        mysql = """CREATE TABLE `test_pk` (
+  `mapid` int unsigned NOT NULL,
+  `difficulty` tinyint unsigned NOT NULL,
+  `comment` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  PRIMARY KEY (`mapid`,`difficulty`)
+) ENGINE=MyISAM;"""
+        pipeline = create_default_pipeline()
+        result = pipeline.convert(mysql)
+
+        # PRIMARY KEY should be preserved
+        assert "PRIMARY KEY" in result
+        # Composite key columns should be present
+        assert "mapid" in result.lower()
+        assert "difficulty" in result.lower()

@@ -252,8 +252,11 @@ class TransformationStage(BasePipelineStage):
         except ParseError as e:
             ctx.log_debug(f"sqlglot error on DDL: {e}")
             ctx.stats.sqlglot_errors += 1
-            # Fall back to DML-style regex conversion
-            return self._convert_dml(sql, ctx)
+            # Fall back to regex-based DDL conversion
+            converted = self._convert_ddl_fallback(ddl_sql, ctx)
+            if comment_lines:
+                return "\n".join(comment_lines) + "\n" + converted
+            return converted
 
     def _preprocess_ddl(self, sql: str) -> str:
         """Preprocess DDL for sqlglot compatibility."""
@@ -660,6 +663,9 @@ class TransformationStage(BasePipelineStage):
         # Fix BYTEA size modifier
         sql = re.sub(r"\bBYTEA\s*\(\d+\)", "BYTEA", sql, flags=re.IGNORECASE)
 
+        # Convert BLOB to BYTEA (sqlglot outputs BLOB for MySQL blob types)
+        sql = re.sub(r"\bBLOB\b", "BYTEA", sql, flags=re.IGNORECASE)
+
         # Convert CHAR(n) to VARCHAR(n) to avoid PostgreSQL CHAR padding issues
         # PostgreSQL pads CHAR columns with spaces to the declared length, which
         # causes problems when comparing short strings (e.g., "OSX" becomes "OSX ")
@@ -692,6 +698,176 @@ class TransformationStage(BasePipelineStage):
 
         # Remove FULLTEXT INDEX (handles both quoted and unquoted identifiers)
         sql = re.sub(r',\s*FULLTEXT\s+INDEX\s+(?:"[^"]+"|[a-z_][a-z0-9_]*)\s*\([^)]+\)', "", sql, flags=re.IGNORECASE)
+
+        return sql
+
+    def _convert_ddl_fallback(self, sql: str, ctx: ConversionContext) -> str:
+        """Convert DDL using regex when sqlglot fails.
+
+        This handles CREATE TABLE statements with complex syntax that sqlglot
+        cannot parse, such as columns with CHARACTER SET or COLLATE clauses.
+        """
+        ctx.log_debug("Using regex fallback for DDL conversion")
+
+        # Remove backticks and convert to lowercase identifiers
+        sql = remove_backticks(sql)
+
+        # === MySQL Data Type Conversions ===
+
+        # Integer types with UNSIGNED (remove UNSIGNED, PostgreSQL doesn't have it)
+        sql = re.sub(r"\bBIGINT\s*\(\d+\)\s+UNSIGNED\b", "BIGINT", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\bBIGINT\s+UNSIGNED\b", "BIGINT", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\bINT\s*\(\d+\)\s+UNSIGNED\b", "INTEGER", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\bINT\s+UNSIGNED\b", "INTEGER", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\bMEDIUMINT\s*\(\d+\)\s+UNSIGNED\b", "INTEGER", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\bMEDIUMINT\s+UNSIGNED\b", "INTEGER", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\bSMALLINT\s*\(\d+\)\s+UNSIGNED\b", "INTEGER", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\bSMALLINT\s+UNSIGNED\b", "INTEGER", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\bTINYINT\s*\(\d+\)\s+UNSIGNED\b", "SMALLINT", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\bTINYINT\s+UNSIGNED\b", "SMALLINT", sql, flags=re.IGNORECASE)
+
+        # Integer types without UNSIGNED
+        sql = re.sub(r"\bBIGINT\s*\(\d+\)", "BIGINT", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\bINT\s*\(\d+\)", "INTEGER", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\bINT\b(?!\s*\()", "INTEGER", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\bMEDIUMINT\s*\(\d+\)", "INTEGER", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\bMEDIUMINT\b", "INTEGER", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\bSMALLINT\s*\(\d+\)", "SMALLINT", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\bTINYINT\s*\(\d+\)", "SMALLINT", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\bTINYINT\b", "SMALLINT", sql, flags=re.IGNORECASE)
+
+        # Text types
+        sql = re.sub(r"\bLONGTEXT\b", "TEXT", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\bMEDIUMTEXT\b", "TEXT", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\bTINYTEXT\b", "TEXT", sql, flags=re.IGNORECASE)
+
+        # Blob types
+        sql = re.sub(r"\bLONGBLOB\b", "BYTEA", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\bMEDIUMBLOB\b", "BYTEA", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\bTINYBLOB\b", "BYTEA", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\bBLOB\b", "BYTEA", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\bBINARY\s*\(\d+\)", "BYTEA", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\bVARBINARY\s*\(\d+\)", "BYTEA", sql, flags=re.IGNORECASE)
+
+        # DOUBLE and FLOAT
+        sql = re.sub(r"\bDOUBLE\s+PRECISION\b", "DOUBLE PRECISION", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\bDOUBLE\b(?!\s+PRECISION)", "DOUBLE PRECISION", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\bFLOAT\s*\(\d+,\s*\d+\)", "REAL", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\bFLOAT\s*\(\d+\)", "REAL", sql, flags=re.IGNORECASE)
+
+        # DATETIME and TIMESTAMP
+        sql = re.sub(r"\bDATETIME\s*\(\d+\)", "TIMESTAMP", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\bDATETIME\b", "TIMESTAMP", sql, flags=re.IGNORECASE)
+
+        # ENUM and SET to TEXT
+        sql = re.sub(r"\bENUM\s*\([^)]+\)", "TEXT", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\bSET\s*\([^)]+\)", "TEXT", sql, flags=re.IGNORECASE)
+
+        # CHAR to VARCHAR (avoid PostgreSQL padding issues)
+        sql = re.sub(r"\bCHAR\s*\((\d+)\)", r"VARCHAR(\1)", sql, flags=re.IGNORECASE)
+
+        # === Remove MySQL-specific Column Options ===
+
+        # Remove CHARACTER SET and COLLATE from column definitions
+        sql = re.sub(
+            r"\s+CHARACTER\s+SET\s+\w+(?:\s+COLLATE\s+\w+)?",
+            "",
+            sql,
+            flags=re.IGNORECASE,
+        )
+        sql = re.sub(r"\s+COLLATE\s+\w+", "", sql, flags=re.IGNORECASE)
+
+        # Remove COMMENT clauses
+        sql = re.sub(r"\s+COMMENT\s+'[^']*'", "", sql, flags=re.IGNORECASE)
+
+        # Remove ON UPDATE CURRENT_TIMESTAMP
+        sql = re.sub(
+            r"\s+ON\s+UPDATE\s+CURRENT_TIMESTAMP(?:\s*\(\d*\))?",
+            "",
+            sql,
+            flags=re.IGNORECASE,
+        )
+
+        # === Remove MySQL-specific Table Options ===
+
+        # Remove ENGINE clause
+        sql = re.sub(r"\s*ENGINE\s*=\s*\w+", "", sql, flags=re.IGNORECASE)
+
+        # Remove DEFAULT CHARSET
+        sql = re.sub(r"\s*DEFAULT\s+CHARSET\s*=\s*\w+", "", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\s*CHARSET\s*=\s*\w+", "", sql, flags=re.IGNORECASE)
+
+        # Remove AUTO_INCREMENT table option
+        sql = re.sub(r"\s*AUTO_INCREMENT\s*=\s*\d+", "", sql, flags=re.IGNORECASE)
+
+        # Remove ROW_FORMAT
+        sql = re.sub(r"\s*ROW_FORMAT\s*=\s*\w+", "", sql, flags=re.IGNORECASE)
+
+        # Remove KEY_BLOCK_SIZE
+        sql = re.sub(r"\s*KEY_BLOCK_SIZE\s*=\s*\d+", "", sql, flags=re.IGNORECASE)
+
+        # Remove PACK_KEYS
+        sql = re.sub(r"\s*PACK_KEYS\s*=\s*\w+", "", sql, flags=re.IGNORECASE)
+
+        # Remove table COLLATE
+        sql = re.sub(r"\s*COLLATE\s*=\s*\w+", "", sql, flags=re.IGNORECASE)
+
+        # Remove table COMMENT (including the = sign and quotes)
+        sql = re.sub(r"\)\s*COMMENT\s*=\s*'[^']*'\s*;", ");", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\s*COMMENT\s*=\s*'[^']*'", "", sql, flags=re.IGNORECASE)
+
+        # === Convert AUTO_INCREMENT to IDENTITY ===
+
+        # AUTO_INCREMENT column becomes GENERATED BY DEFAULT AS IDENTITY
+        def convert_auto_increment(m: re.Match[str]) -> str:
+            col_def = m.group(0)
+            # Remove AUTO_INCREMENT keyword
+            col_def = re.sub(r"\s*AUTO_INCREMENT\b", "", col_def, flags=re.IGNORECASE)
+            # Add IDENTITY clause
+            col_def = col_def.rstrip(",") + " GENERATED BY DEFAULT AS IDENTITY"
+            if m.group(0).rstrip().endswith(","):
+                col_def += ","
+            return col_def
+
+        sql = re.sub(
+            r"\b\w+\s+(?:INTEGER|BIGINT|SMALLINT)\s+[^,)]*AUTO_INCREMENT[^,)]*(?=[,)])",
+            convert_auto_increment,
+            sql,
+            flags=re.IGNORECASE,
+        )
+
+        # === Handle Index Definitions ===
+
+        # Remove inline INDEX/KEY definitions
+        sql = re.sub(r',\s*INDEX\s+\w+\s*\([^)]+\)', "", sql, flags=re.IGNORECASE)
+        sql = re.sub(r',\s*KEY\s+\w+\s*\([^)]+\)', "", sql, flags=re.IGNORECASE)
+
+        # Remove FULLTEXT INDEX
+        sql = re.sub(r',\s*FULLTEXT\s+(?:INDEX|KEY)\s+\w+\s*\([^)]+\)', "", sql, flags=re.IGNORECASE)
+
+        # Remove UNIQUE INDEX/KEY (keep as UNIQUE constraint)
+        sql = re.sub(r'\bUNIQUE\s+(?:INDEX|KEY)\s+\w+\s*', "UNIQUE ", sql, flags=re.IGNORECASE)
+
+        # Remove USING BTREE/HASH
+        sql = re.sub(r"\s+USING\s+(?:BTREE|HASH)", "", sql, flags=re.IGNORECASE)
+
+        # === Clean up ===
+
+        # Remove orphaned ='value' patterns at end of CREATE TABLE
+        # (leftover from COMMENT='value' when COMMENT keyword was removed separately)
+        sql = re.sub(r"\)\s*=\s*'[^']*'\s*;", ");", sql, flags=re.IGNORECASE)
+
+        # Remove extra commas before closing parenthesis
+        sql = re.sub(r",\s*\)", ")", sql)
+
+        # Remove multiple consecutive commas
+        sql = re.sub(r",\s*,+", ",", sql)
+
+        # Remove extra whitespace
+        sql = re.sub(r"\n\s*\n+", "\n", sql)
+
+        # Lowercase identifiers (for PostgreSQL consistency)
+        sql = re.sub(r'\b([A-Z_][A-Z0-9_]*)\b(?!["\'])', lambda m: m.group(1).lower(), sql)
 
         return sql
 
