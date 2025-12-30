@@ -8,7 +8,7 @@ The PostgreSQL implementation consists of three main components:
 
 1. **SQL Converter** (`contrib/postgres_tools/`) - Converts MySQL SQL to PostgreSQL syntax
 2. **C++ Database Layer** (`src/server/database/`) - PostgreSQL connection and query handling
-3. **Converted SQL Files** (`sql/base/postgresql/`, `sql/updates/*/postgresql/`) - Schema and data
+3. **Converted SQL Files** (`sql/base/postgresql/`, `sql/updates/*/cata_classic/postgresql/`) - Schema and data
 
 ## Testing Phases
 
@@ -48,7 +48,7 @@ Verify converted SQL is valid PostgreSQL syntax:
 # For each converted file, validate syntax without executing
 for f in sql/base/postgresql/*.sql; do
     echo "Validating: $f"
-    PGPASSWORD=trinity psql -h 127.0.0.1 -p 53556 -U trinity -d postgres \
+    PGPASSWORD=trinity psql -h 127.0.0.1 -p 54366 -U trinity -d postgres \
         -c "DO \$\$BEGIN RAISE NOTICE 'Validating...'; END\$\$;" \
         --set ON_ERROR_STOP=1 -f "$f" 2>&1 | head -5
 done
@@ -96,15 +96,15 @@ For critical tables, verify not just counts but actual data:
 
 ```bash
 # Auth database - realmlist table
-mysql -h 127.0.0.1 -P 33506 -utrinity -ptrinity trinity_auth \
+mysql -h 127.0.0.1 -P 33606 -utrinity -ptrinity auth \
     -e "SELECT * FROM realmlist ORDER BY id"
-PGPASSWORD=trinity psql -h 127.0.0.1 -p 53556 -U trinity -d trinity_auth \
+PGPASSWORD=trinity psql -h 127.0.0.1 -p 54366 -U trinity -d auth \
     -c "SELECT * FROM realmlist ORDER BY id"
 
 # World database - creature_template sample
-mysql -h 127.0.0.1 -P 33508 -utrinity -ptrinity trinity_world \
+mysql -h 127.0.0.1 -P 33608 -utrinity -ptrinity world \
     -e "SELECT entry, name, subname FROM creature_template LIMIT 10"
-PGPASSWORD=trinity psql -h 127.0.0.1 -p 53558 -U trinity -d trinity_world \
+PGPASSWORD=trinity psql -h 127.0.0.1 -p 54368 -U trinity -d world \
     -c "SELECT entry, name, subname FROM creature_template LIMIT 10"
 ```
 
@@ -121,8 +121,8 @@ Verify that data type conversions preserve values correctly:
 
 ```bash
 # Example: Check unsigned int handling
-mysql -P 33508 -e "SELECT MAX(entry) FROM trinity_world.creature_template"
-psql -p 53558 -c "SELECT MAX(entry) FROM creature_template" trinity_world
+mysql -P 33608 -e "SELECT MAX(entry) FROM world.creature_template"
+psql -p 54368 -c "SELECT MAX(entry) FROM creature_template" world
 ```
 
 ### Phase 3: Schema Compatibility
@@ -133,11 +133,11 @@ psql -p 53558 -c "SELECT MAX(entry) FROM creature_template" trinity_world
 
 ```bash
 # MySQL table count
-mysql -h 127.0.0.1 -P 33508 -utrinity -ptrinity -N -e \
-    "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'trinity_world'"
+mysql -h 127.0.0.1 -P 33608 -utrinity -ptrinity -N -e \
+    "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'world'"
 
 # PostgreSQL table count
-PGPASSWORD=trinity psql -h 127.0.0.1 -p 53558 -U trinity -d trinity_world -t -c \
+PGPASSWORD=trinity psql -h 127.0.0.1 -p 54368 -U trinity -d world -t -c \
     "SELECT COUNT(*) FROM pg_tables WHERE schemaname = 'public'"
 ```
 
@@ -147,14 +147,14 @@ Generate schema comparison reports:
 
 ```bash
 # MySQL schema
-mysql -h 127.0.0.1 -P 33508 -utrinity -ptrinity -e \
+mysql -h 127.0.0.1 -P 33608 -utrinity -ptrinity -e \
     "SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, COLUMN_TYPE
      FROM information_schema.columns
-     WHERE table_schema = 'trinity_world'
+     WHERE table_schema = 'world'
      ORDER BY TABLE_NAME, ORDINAL_POSITION" > mysql_schema.txt
 
 # PostgreSQL schema
-PGPASSWORD=trinity psql -h 127.0.0.1 -p 53558 -U trinity -d trinity_world -t -A -F'|' -c \
+PGPASSWORD=trinity psql -h 127.0.0.1 -p 54368 -U trinity -d world -t -A -F'|' -c \
     "SELECT table_name, column_name, data_type, udt_name
      FROM information_schema.columns
      WHERE table_schema = 'public'
@@ -167,7 +167,7 @@ Verify indexes are created correctly:
 
 ```bash
 # PostgreSQL index list
-PGPASSWORD=trinity psql -h 127.0.0.1 -p 53558 -U trinity -d trinity_world -c \
+PGPASSWORD=trinity psql -h 127.0.0.1 -p 54368 -U trinity -d world -c \
     "SELECT tablename, indexname FROM pg_indexes WHERE schemaname = 'public' ORDER BY tablename, indexname"
 ```
 
@@ -175,7 +175,7 @@ PGPASSWORD=trinity psql -h 127.0.0.1 -p 53558 -U trinity -d trinity_world -c \
 
 ```bash
 # PostgreSQL primary keys
-PGPASSWORD=trinity psql -h 127.0.0.1 -p 53558 -U trinity -d trinity_world -c \
+PGPASSWORD=trinity psql -h 127.0.0.1 -p 54368 -U trinity -d world -c \
     "SELECT tc.table_name, kcu.column_name
      FROM information_schema.table_constraints tc
      JOIN information_schema.key_column_usage kcu
@@ -195,20 +195,20 @@ PGPASSWORD=trinity psql -h 127.0.0.1 -p 53558 -U trinity -d trinity_world -c \
 ./build-dev.sh --postgresql -j all
 
 # Verify binary was built with PostgreSQL support
-./install-335-postgresql/bin/authserver --version 2>&1 | grep -i postgres
+./install-cata-postgresql/bin/bnetserver --version 2>&1 | grep -i postgres
 ```
 
 #### 4.2 Connection Pool Testing
 
 ```bash
-# Start authserver with PostgreSQL
-cd install-335-postgresql
-./bin/authserver
+# Start bnetserver with PostgreSQL
+cd install-cata-postgresql
+./bin/bnetserver
 
 # Expected output:
-# DatabasePool 'trinity_auth' opened successfully
+# DatabasePool 'auth' opened successfully
 # ...
-# Network: Started listening on 0.0.0.0:3724
+# Network: Started listening on 0.0.0.0:1119
 ```
 
 Check for:
@@ -216,7 +216,7 @@ Check for:
 - [ ] Pool opens successfully
 - [ ] No connection errors
 - [ ] Prepared statements compile without errors
-- [ ] Server starts listening on expected port
+- [ ] Server starts listening on expected port (1119 for bnetserver)
 
 #### 4.3 Prepared Statement Testing
 
@@ -234,7 +234,7 @@ Expected: No prepared statement binding errors.
 Test via worldserver console commands:
 
 ```bash
-cd install-335-postgresql
+cd install-cata-postgresql
 ./bin/worldserver
 
 # In console:
@@ -302,8 +302,8 @@ wait
 
 ```bash
 # Time a complex query on both backends
-time mysql -P 33508 -e "SELECT COUNT(*) FROM trinity_world.creature_template WHERE entry < 50000"
-time psql -p 53558 -c "SELECT COUNT(*) FROM creature_template WHERE entry < 50000" trinity_world
+time mysql -P 33608 -e "SELECT COUNT(*) FROM world.creature_template WHERE entry < 50000"
+time psql -p 54368 -c "SELECT COUNT(*) FROM creature_template WHERE entry < 50000" world
 ```
 
 ### Phase 7: SQL Update Application Testing
@@ -314,8 +314,8 @@ time psql -p 53558 -c "SELECT COUNT(*) FROM creature_template WHERE entry < 5000
 
 ```bash
 # Verify all updates have PostgreSQL versions
-ls sql/updates/world/3.3.5/*.sql | wc -l
-ls sql/updates/world/3.3.5/postgresql/*.sql | wc -l
+ls sql/updates/world/cata_classic/*.sql | wc -l
+ls sql/updates/world/cata_classic/postgresql/*.sql | wc -l
 # Counts should match
 ```
 
@@ -323,32 +323,34 @@ ls sql/updates/world/3.3.5/postgresql/*.sql | wc -l
 
 ```bash
 # Apply a sample update
-PGPASSWORD=trinity psql -h 127.0.0.1 -p 53558 -U trinity -d trinity_world \
-    -f sql/updates/world/3.3.5/postgresql/2025_10_21_00_world.sql
+PGPASSWORD=trinity psql -h 127.0.0.1 -p 54368 -U trinity -d world \
+    -f sql/updates/world/cata_classic/postgresql/2025_01_01_00_world.sql
 ```
 
 ## Test Matrix
 
-| Component | Test Type | Priority | Status |
-|-----------|-----------|----------|--------|
-| SQL Converter | Unit tests | High | [x] 254 tests passed |
-| SQL Converter | Syntax validation | High | [x] All files validate |
-| Data import | Schema import | High | [x] Automatic import works |
-| Data parity | Row counts | High | [x] 239 tables match |
-| Data parity | Data values | Medium | [x] Verified critical tables |
-| Schema | Table count | High | [x] 239 tables in world DB |
-| Schema | Column types | Medium | [x] Verified via parity check |
-| Schema | Indexes | Medium | [x] 184 indexes verified |
-| Runtime | Connection pool | High | [x] Both servers connect |
-| Runtime | Prepared statements | High | [x] No binding errors |
-| Runtime | Query execution | High | [x] All updates apply |
-| Functional | Account CRUD | High | [ ] Pending client testing |
-| Functional | Character CRUD | High | [ ] Pending client testing |
-| Functional | World data | High | [x] Data loads correctly |
-| Performance | Connection stress | Low | [ ] Not tested |
-| Performance | Query comparison | Low | [ ] Not tested |
-| Updates | Conversion | Medium | [x] All 37 updates convert |
-| Updates | Application | Medium | [x] All 35 updates apply |
+**Status Legend**: [x] Completed on 3.3.5, [ ] Pending for cata_classic
+
+| Component | Test Type | Priority | 3.3.5 | Cata Classic |
+|-----------|-----------|----------|-------|--------------|
+| SQL Converter | Unit tests | High | [x] 254 tests passed | [ ] Needs testing |
+| SQL Converter | Syntax validation | High | [x] All files validate | [ ] Needs testing |
+| Data import | Schema import | High | [x] Automatic import works | [ ] Pending C++ port |
+| Data parity | Row counts | High | [x] 239 tables match | [ ] Pending |
+| Data parity | Data values | Medium | [x] Verified critical tables | [ ] Pending |
+| Schema | Table count | High | [x] 239 tables in world DB | [ ] Pending |
+| Schema | Column types | Medium | [x] Verified via parity check | [ ] Pending |
+| Schema | Indexes | Medium | [x] 184 indexes verified | [ ] Pending |
+| Runtime | Connection pool | High | [x] Both servers connect | [ ] Pending C++ port |
+| Runtime | Prepared statements | High | [x] No binding errors | [ ] Pending C++ port |
+| Runtime | Query execution | High | [x] All updates apply | [ ] Pending C++ port |
+| Functional | Account CRUD | High | [ ] Pending client testing | [ ] Pending |
+| Functional | Character CRUD | High | [ ] Pending client testing | [ ] Pending |
+| Functional | World data | High | [x] Data loads correctly | [ ] Pending C++ port |
+| Performance | Connection stress | Low | [ ] Not tested | [ ] Not tested |
+| Performance | Query comparison | Low | [ ] Not tested | [ ] Not tested |
+| Updates | Conversion | Medium | [x] All 37 updates convert | [ ] Needs testing |
+| Updates | Application | Medium | [x] All 35 updates apply | [ ] Pending C++ port |
 
 ## Known Differences
 
@@ -362,6 +364,7 @@ Document expected differences between MySQL and PostgreSQL:
 | Auto-updates | Supported | Supported | PostgreSQL uses `/postgresql` subdirectories |
 | Case sensitivity | Case-insensitive by default | Case-sensitive | Table/column names lowercase |
 | Foreign key indexes | Auto-created by MySQL | Not auto-created | PostgreSQL creates FKs without indexes |
+| Databases | 4 (auth, characters, world, hotfixes) | 4 (auth, characters, world, hotfixes) | Cata Classic uses 4 databases |
 
 ### Standard TrinityCore Workflow (MySQL)
 
@@ -377,13 +380,13 @@ TrinityCore's default MySQL workflow:
 The PostgreSQL implementation now matches MySQL:
 
 1. **Automatic schema import** - Servers detect empty databases and import from `sql/base/postgresql/`
-2. **Automatic update application** - Updates from `sql/updates/<db>/3.3.5/postgresql/` applied on startup
+2. **Automatic update application** - Updates from `sql/updates/<db>/cata_classic/postgresql/` applied on startup
 3. **Updates enabled** - Configure `Updates.EnableDatabases` as with MySQL
 
 Implementation details:
 - PostgreSQL uses `libpq` directly instead of an external `psql` executable
 - The `UpdateFetcher` automatically appends `/postgresql` to update paths
-- Archive paths use `sql/old/3.3.5a/<db>/postgresql/`
+- Archive paths use `sql/old/cata_classic/<db>/postgresql/`
 
 ## Automated Test Script
 
@@ -413,15 +416,15 @@ echo "Building PostgreSQL version..."
 
 # Phase 4: Server startup test
 echo "Testing server startup..."
-cd install-335-postgresql
-timeout 30 ./bin/authserver &
-AUTH_PID=$!
+cd install-cata-postgresql
+timeout 30 ./bin/bnetserver &
+BNET_PID=$!
 sleep 10
-if ps -p $AUTH_PID > /dev/null; then
-    echo "authserver started successfully"
-    kill $AUTH_PID
+if ps -p $BNET_PID > /dev/null; then
+    echo "bnetserver started successfully"
+    kill $BNET_PID
 else
-    echo "authserver failed to start"
+    echo "bnetserver failed to start"
     exit 1
 fi
 
@@ -449,9 +452,10 @@ When PostgreSQL-related issues are found:
 ### Test PostgreSQL Connectivity
 
 ```bash
-PGPASSWORD=trinity psql -h 127.0.0.1 -p 53556 -U trinity -d trinity_auth -c "SELECT 1"
-PGPASSWORD=trinity psql -h 127.0.0.1 -p 53557 -U trinity -d trinity_characters -c "SELECT 1"
-PGPASSWORD=trinity psql -h 127.0.0.1 -p 53558 -U trinity -d trinity_world -c "SELECT 1"
+PGPASSWORD=trinity psql -h 127.0.0.1 -p 54366 -U trinity -d auth -c "SELECT 1"
+PGPASSWORD=trinity psql -h 127.0.0.1 -p 54367 -U trinity -d characters -c "SELECT 1"
+PGPASSWORD=trinity psql -h 127.0.0.1 -p 54368 -U trinity -d world -c "SELECT 1"
+PGPASSWORD=trinity psql -h 127.0.0.1 -p 54369 -U trinity -d hotfixes -c "SELECT 1"
 ```
 
 ### Reset and Reimport
@@ -469,31 +473,40 @@ PGPASSWORD=trinity psql -h 127.0.0.1 -p 53558 -U trinity -d trinity_world -c "SE
 ./contrib/postgres_tools/data_parity_check.sh full
 ```
 
-## Test Results (2025-12-29)
+## Test Results
 
-### Phase 1: SQL Converter Validation
+**Note**: These results are from testing on the 3.3.5 branch. Testing on cata_classic is pending C++ PostgreSQL backend porting.
+
+### Phase 1: SQL Converter Validation (3.3.5 reference)
 
 - 220 unit tests pass
 - All MySQL SQL syntax correctly converts to PostgreSQL
 - Reserved word quoting fix applied (backticks → double quotes AFTER string conversion)
 
-### Phase 2: Data Parity Verification
+### Phase 2: Data Parity Verification (3.3.5 reference)
 
 - 239 tables match between MySQL and PostgreSQL
 - Row counts match after accounting for update differences
 - Binary data, timestamps, and text data verified
 
-### Phase 3: Schema Compatibility
+### Phase 3: Schema Compatibility (3.3.5 reference)
 
 - 239 primary keys verified
 - 184 indexes verified
 - Column type mappings validated
 
-### Phase 4: C++ Runtime Testing
+### Phase 4: C++ Runtime Testing (3.3.5 reference)
 
 - **authserver**: Connects to PostgreSQL, applies updates, starts successfully
 - **worldserver**: Connects to PostgreSQL, imports base schema, applies all 35 updates successfully
 - Server shuts down only due to missing map files (expected in test environment)
+
+### Cata Classic Specific Notes
+
+- Uses 4 databases instead of 3 (adds hotfixes)
+- Uses bnetserver instead of authserver
+- World database uses different table structure (Cata Classic content)
+- Hotfixes database requires additional testing
 
 ### Bugs Fixed During Testing
 
@@ -521,6 +534,9 @@ When adding new tables with binary columns, update this configuration to ensure 
 
 ### Remaining Work
 
+- Port PostgreSQL C++ backend implementation from 3.3.5 to cata_classic
+- Convert base schemas for cata_classic (auth, characters, world, hotfixes)
+- Convert SQL updates for cata_classic
 - Phase 5 functional testing requires a game client connected to the PostgreSQL-backed server
 - Performance testing not yet conducted
 - Account and character CRUD operations need client verification
