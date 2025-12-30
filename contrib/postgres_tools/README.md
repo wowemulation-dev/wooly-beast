@@ -2,6 +2,38 @@
 
 This directory contains tools for converting TrinityCore SQL files from MySQL to PostgreSQL format.
 
+## Important: Generated Files Not Shipped
+
+PostgreSQL SQL files are **not included** in the repository. Users must generate them locally using these tools before using PostgreSQL as a database backend.
+
+The generated files are excluded via `.gitignore` because:
+- They are derived from the MySQL source files
+- Regenerating ensures compatibility with converter improvements
+- It avoids repository bloat from duplicate SQL content
+
+Run the conversion scripts (see below) to generate PostgreSQL-compatible SQL files.
+
+### Quick Start: Generate PostgreSQL Files
+
+```bash
+cd contrib/postgres_tools
+
+# Install dependencies
+uv sync
+
+# Convert sql/updates/ files
+./regenerate_updates.sh
+
+# Convert sql/base/ schemas
+uv run mysql-to-postgres ../../sql/base/auth_database.sql ../../sql/base/postgresql/auth_database.sql
+uv run mysql-to-postgres ../../sql/base/characters_database.sql ../../sql/base/postgresql/characters_database.sql
+
+# Convert sql/old/ updates (optional, only needed for historical migrations)
+uv run mysql-to-postgres --directory ../../sql/old/3.3.5a ../../sql/old/3.3.5a
+```
+
+This creates `postgresql/` subdirectories containing converted SQL files.
+
 ## Requirements
 
 ### Tool Requirements
@@ -80,23 +112,11 @@ BRANCH_VERSION=3.3.5 ./convert_updates.sh
 ./convert_updates.sh /path/to/sql/updates /path/to/output
 ```
 
-### convert_all_updates.sh
-
-Simple batch converter for all database update files.
-
-**Usage:**
-
-```bash
-# Convert all updates for cata_classic (default)
-./convert_all_updates.sh
-
-# Convert for 3.3.5
-BRANCH_VERSION=3.3.5 ./convert_all_updates.sh
-```
-
 ### regenerate_updates.sh
 
 Regenerates all PostgreSQL update files from MySQL versions (no skip logic).
+Unlike `convert_updates.sh`, this always regenerates all files regardless of
+modification time.
 
 **Usage:**
 

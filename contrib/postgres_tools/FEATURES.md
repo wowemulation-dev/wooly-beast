@@ -141,6 +141,29 @@ INSERT INTO t VALUES (3735928559);
 
 Hex literals inside string literals are preserved unchanged.
 
+#### BYTEA Column Hex Literals
+
+For columns storing binary data (BYTEA), hex literals are converted to
+PostgreSQL's `decode()` function instead of integers:
+
+```sql
+-- MySQL
+INSERT INTO build_auth_key (build, key) VALUES (12340, 0x66FC5E09AB...);
+
+-- PostgreSQL
+INSERT INTO build_auth_key (build, key) VALUES (12340, decode('66FC5E09AB...', 'hex'));
+```
+
+The converter automatically detects BYTEA columns in these tables:
+
+| Table | Columns |
+|-------|---------|
+| `build_auth_key` | `key` |
+| `build_executable_hash` | `executablehash` |
+| `warden_checks` | `data`, `result` |
+
+Additional tables can be configured in `config/bytea_tables.py`.
+
 #### String Escapes
 
 | MySQL | PostgreSQL |
