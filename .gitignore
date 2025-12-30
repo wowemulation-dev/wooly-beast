@@ -13,3 +13,6 @@ install*/
 __pycache__/
 *.py[cod]
 .venv/
+
+# Auto-generated PostgreSQL SQL files (from mysql-to-postgres converter)
+sql/**/postgresql/
