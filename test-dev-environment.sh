@@ -40,10 +40,10 @@ POSTGRES_CHAR_PORT="${POSTGRES_CHAR_PORT:-53557}"
 POSTGRES_WORLD_PORT="${POSTGRES_WORLD_PORT:-53558}"
 
 # Build directories
-BUILD_DIR="${BUILD_DIR:-build-335}"
-BUILD_DIR_POSTGRES="${BUILD_DIR_POSTGRES:-build-335-postgres}"
-INSTALL_DIR="${INSTALL_DIR:-$(pwd)/install-335}"
-INSTALL_DIR_POSTGRES="${INSTALL_DIR_POSTGRES:-$(pwd)/install-335-postgres}"
+BUILD_DIR="${BUILD_DIR:-build-335-mysql}"
+BUILD_DIR_POSTGRES="${BUILD_DIR_POSTGRES:-build-335-postgresql}"
+INSTALL_DIR="${INSTALL_DIR:-$(pwd)/install-335-mysql}"
+INSTALL_DIR_POSTGRES="${INSTALL_DIR_POSTGRES:-$(pwd)/install-335-postgresql}"
 
 MYSQL_CONTAINERS=(
     "${MYSQL_AUTH_CONTAINER}"
@@ -82,6 +82,8 @@ function show_usage() {
     echo "  test                   Test MySQL backend (start authserver briefly)"
     echo "  test-postgres          Test PostgreSQL backend"
     echo "  test-both              Test both backends sequentially"
+    echo "  test-pg-console        Run PostgreSQL console database tests"
+    echo "  test-pg-quick          Quick PostgreSQL DB connectivity test"
     echo "  convert-sql            Convert SQL update files to PostgreSQL format"
     echo ""
     echo "Status/Cleanup:"
@@ -94,10 +96,10 @@ function show_usage() {
     echo "  POSTGRES_VERSION       PostgreSQL image version (default: 16)"
     echo "  DB_USER                Database user (default: trinity)"
     echo "  DB_PASSWORD            Database password (default: trinity)"
-    echo "  BUILD_DIR              MySQL build directory (default: build-335)"
-    echo "  BUILD_DIR_POSTGRES     PostgreSQL build directory (default: build-335-postgres)"
-    echo "  INSTALL_DIR            MySQL install directory (default: ./install-335)"
-    echo "  INSTALL_DIR_POSTGRES   PostgreSQL install directory (default: ./install-335-postgres)"
+    echo "  BUILD_DIR              MySQL build directory (default: build-335-mysql)"
+    echo "  BUILD_DIR_POSTGRES     PostgreSQL build directory (default: build-335-postgresql)"
+    echo "  INSTALL_DIR            MySQL install directory (default: ./install-335-mysql)"
+    echo "  INSTALL_DIR_POSTGRES   PostgreSQL install directory (default: ./install-335-postgresql)"
     echo ""
     echo "Databases (3.3.5 WotLK):"
     echo "  auth       - Login/authentication database"
@@ -580,6 +582,35 @@ function convert_sql() {
     echo "SQL conversion complete"
 }
 
+function test_postgres_console() {
+    echo "Running PostgreSQL console database tests..."
+
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    CONSOLE_TEST="${SCRIPT_DIR}/contrib/postgres_tools/console_db_test.sh"
+
+    if [ ! -f "${CONSOLE_TEST}" ]; then
+        echo "Error: Console test script not found at ${CONSOLE_TEST}"
+        exit 1
+    fi
+
+    # Pass the install directory and run the test
+    INSTALL_DIR="${INSTALL_DIR_POSTGRES}" bash "${CONSOLE_TEST}" "${1:-both}"
+}
+
+function test_postgres_quick() {
+    echo "Running quick PostgreSQL connectivity test..."
+
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    CONSOLE_TEST="${SCRIPT_DIR}/contrib/postgres_tools/console_db_test.sh"
+
+    if [ ! -f "${CONSOLE_TEST}" ]; then
+        echo "Error: Console test script not found at ${CONSOLE_TEST}"
+        exit 1
+    fi
+
+    INSTALL_DIR="${INSTALL_DIR_POSTGRES}" bash "${CONSOLE_TEST}" quick
+}
+
 function show_status() {
     echo "=== Container Status ==="
     if command -v podman &>/dev/null; then
@@ -718,6 +749,12 @@ case "${1:-}" in
         ;;
     test-both)
         test_both
+        ;;
+    test-pg-console)
+        test_postgres_console "${2:-both}"
+        ;;
+    test-pg-quick)
+        test_postgres_quick
         ;;
     convert-sql)
         convert_sql
