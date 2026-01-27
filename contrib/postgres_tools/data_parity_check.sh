@@ -26,7 +26,7 @@ POSTGRES_CHAR_PORT="${POSTGRES_CHAR_PORT:-53557}"
 POSTGRES_WORLD_PORT="${POSTGRES_WORLD_PORT:-53558}"
 
 # TDB location
-TDB_PATH="${TDB_PATH:-$HOME/Repos/github.com/wowemulation-dev/TDB/335/25101_2025_10_21/TDB_full_world_335.25101_2025_10_21.sql}"
+TDB_PATH="${TDB_PATH:-$HOME/Repos/github.com/TrinityCore/TDB/335/25101_2025_10_21/TDB_full_world_335.25101_2025_10_21.sql}"
 
 # Output directory
 OUTPUT_DIR="${PROJECT_ROOT}/data_parity_results"
