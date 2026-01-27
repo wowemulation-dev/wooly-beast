@@ -5,7 +5,7 @@ contrib/
 # Build directories (CMake-fetched dependencies)
 build-335-mysql/
 build-335-postgres/
-build-client-data/
+build-335-client-data/
 install-335-mysql/
 install-335-postgres/
 
