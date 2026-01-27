@@ -5,7 +5,7 @@ This document describes the steps to verify the PostgreSQL build works correctly
 ## Prerequisites
 
 - PostgreSQL build completed: `./build-dev.sh --postgresql -j all` or `./test-dev-environment.sh build-postgres`
-- Client data extracted to `build-client-data/` (maps, vmaps, dbc files)
+- Client data extracted to `build-335-client-data/` (maps, vmaps, dbc files)
 - Podman installed for database containers
 - PostgreSQL client installed: `/usr/bin/psql`
 
@@ -127,7 +127,7 @@ WorldDatabaseInfo     = "127.0.0.1;53558;trinity;trinity;trinity_world"
 CharacterDatabaseInfo = "127.0.0.1;53557;trinity;trinity;trinity_characters"
 
 # Client data location (relative to install directory)
-DataDir = "../build-client-data"
+DataDir = "../build-335-client-data"
 
 # Source directory for SQL files (required for auto-updates)
 SourceDirectory = "/path/to/wooly-beast"
@@ -287,8 +287,8 @@ These should be fixed in the converter. Report issues with specific error messag
 
 ### Missing DBC/vmap Files
 
-- Verify DataDir path: should be `../build-client-data` when running from install directory
-- Check `build-client-data/` contains `dbc/`, `maps/`, `vmaps/`
+- Verify DataDir path: should be `../build-335-client-data` when running from install directory
+- Check `build-335-client-data/` contains `dbc/`, `maps/`, `vmaps/`
 
 ### Realm Not Showing in Client
 
@@ -511,7 +511,7 @@ uv run mysql-to-postgres ../../sql/base/characters_database.sql \
 
 # 3. Convert TDB world database
 uv run mysql-to-postgres \
-  ~/Repos/github.com/wowemulation-dev/TDB/335/25101_2025_10_21/TDB_full_world_335.25101_2025_10_21.sql \
+  ~/Repos/github.com/TrinityCore/TDB/335/25101_2025_10_21/TDB_full_world_335.25101_2025_10_21.sql \
   ../../sql/base/postgresql/TDB_full_world_335.sql --debug
 
 # 4. Convert update directories
