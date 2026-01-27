@@ -431,6 +431,67 @@ fi
 echo "=== All tests passed ==="
 ```
 
+## Console Database Test Script
+
+A dedicated script tests database functionality via server console commands:
+
+```bash
+# Quick connectivity test (no server startup)
+./test-dev-environment.sh test-pg-quick
+
+# Full console test (starts servers, runs commands)
+./test-dev-environment.sh test-pg-console
+
+# Or run directly with options
+./contrib/postgres_tools/console_db_test.sh quick       # Fast DB check
+./contrib/postgres_tools/console_db_test.sh authserver  # Auth server tests
+./contrib/postgres_tools/console_db_test.sh worldserver # World server tests
+./contrib/postgres_tools/console_db_test.sh both        # Full test suite
+```
+
+### Console Commands Used for Testing
+
+| Command | Database | Verification |
+|---------|----------|--------------|
+| `.server debug` | All | PostgreSQL version, queue sizes |
+| `.server info` | World | Server uptime, DB connectivity |
+| `account create` | Auth | INSERT operation |
+| `account set gmlevel` | Auth | UPDATE operation |
+| `account delete` | Auth | DELETE operation |
+
+### What the Script Tests
+
+1. **Prerequisites Check**
+   - Install directory exists
+   - Server binaries present
+   - Configuration files exist
+   - PostgreSQL containers accessible
+
+2. **authserver Tests**
+   - Database pool opens successfully
+   - SQL updates applied
+   - Account CRUD operations via console
+   - Database queue status
+
+3. **worldserver Tests**
+   - All three database pools open
+   - Schema auto-import (first run)
+   - Data loading from world database
+   - Expected exit on missing map files
+
+4. **Direct Database Queries**
+   - Realmlist entries
+   - Table counts
+   - Creature template data
+   - BYTEA column verification
+
+### Test Output
+
+Results are logged to `console_test_logs/`:
+- `authserver_startup.log` - Server startup output
+- `authserver_console.log` - Console command results
+- `worldserver_startup.log` - World server output
+
 ## Reporting Issues
 
 When PostgreSQL-related issues are found:
