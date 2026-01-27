@@ -5,7 +5,7 @@ This document describes the steps to verify the MySQL build works correctly.
 ## Prerequisites
 
 - MySQL build completed: `./build-dev.sh --mysql -j all`
-- Client data extracted to `build-client-data/` (maps, vmaps, dbc files)
+- Client data extracted to `build-335-client-data/` (maps, vmaps, dbc files)
 - Podman installed for database containers
 - MySQL client installed: `/usr/bin/mysql`
 
@@ -82,7 +82,7 @@ WorldDatabaseInfo     = "127.0.0.1;33508;trinity;trinity;trinity_world"
 CharacterDatabaseInfo = "127.0.0.1;33507;trinity;trinity;trinity_characters"
 
 # Client data location (relative to install directory)
-DataDir = "../build-client-data"
+DataDir = "../build-335-client-data"
 
 # MySQL executable for automatic schema updates
 MySQLExecutable = "/usr/bin/mysql"
@@ -108,7 +108,7 @@ Recommended setup:
 
 The servers will automatically import base schemas from `sql/base/` on first run.
 
-**Important:** Servers must be started from inside the `install-335-mysql/` directory. The `DataDir` configuration uses relative paths (`../build-client-data`) that resolve correctly only when the working directory is the install folder.
+**Important:** Servers must be started from inside the `install-335-mysql/` directory. The `DataDir` configuration uses relative paths (`../build-335-client-data`) that resolve correctly only when the working directory is the install folder.
 
 Start authserver in one terminal:
 
@@ -157,7 +157,7 @@ When worldserver detects an empty world database, it will prompt for the TDB dum
 
 ```bash
 podman exec -i trinity-335-mysql-world mysql -utrinity -ptrinity trinity_world \
-  < ~/Repos/github.com/wowemulation-dev/TDB/335/25101_2025_10_21/TDB_full_world_335.25101_2025_10_21.sql
+  < ~/Repos/github.com/TrinityCore/TDB/335/25101_2025_10_21/TDB_full_world_335.25101_2025_10_21.sql
 ```
 
 ## 6. Expected Startup Indicators
@@ -224,8 +224,8 @@ The 3.3.5 branch uses these ports:
 
 ### Missing DBC/vmap Files
 
-- Verify DataDir path: should be `../build-client-data` when running from install directory
-- Check `build-client-data/` contains `dbc/`, `maps/`, `vmaps/`
+- Verify DataDir path: should be `../build-335-client-data` when running from install directory
+- Check `build-335-client-data/` contains `dbc/`, `maps/`, `vmaps/`
 
 ### Realm Not Showing in Client
 
