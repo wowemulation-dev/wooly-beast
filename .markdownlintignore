@@ -1,16 +1,12 @@
 # Third-party dependencies
-dep/
-contrib/
-
-# Build directories (CMake-fetched dependencies)
-build-335-mysql/
-build-335-postgres/
-build-335-client-data/
-install-335-mysql/
-install-335-postgres/
+.venv
+node_modules
+vendor
+target
 
 # Standard license text
 LICENSE.md
 
-# YAML issue templates (not Markdown)
-.github/ISSUE_TEMPLATE/*.yml
+# YAML files (not Markdown)
+.github/workflows/*.yml
+.github/workflows/*.yaml
