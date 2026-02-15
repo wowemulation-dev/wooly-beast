@@ -5,6 +5,7 @@ This document describes the steps to verify the PostgreSQL build works correctly
 ## Prerequisites
 
 - PostgreSQL build completed: `./build-dev.sh --postgresql -j all` or `./test-dev-environment.sh build-postgres`
+- PostgreSQL SQL files generated using `contrib/postgres_tools/` (see [conversion tools](../contrib/postgres_tools/README.md))
 - Client data extracted to `build-335-client-data/` (maps, vmaps, dbc files)
 - Podman installed for database containers
 - PostgreSQL client installed: `/usr/bin/psql`
@@ -61,7 +62,9 @@ On first startup with empty databases, the servers will:
 
 ### Option B: Manual Import
 
-For debugging or when you need more control, import schemas manually:
+For debugging or when you need more control, import schemas manually.
+
+PostgreSQL SQL files are not shipped in the repository. Generate them first using the [conversion tools](../contrib/postgres_tools/README.md). The world database TDB file must be converted from the MySQL TDB dump (downloaded separately from TrinityCore releases).
 
 ```bash
 # Import auth database schema

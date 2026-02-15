@@ -228,6 +228,7 @@ CharacterDatabaseInfo = "127.0.0.1;3306;trinity;trinity;trinity_characters"
 | `SERVERS` | Build server executables | ON | `-DSERVERS=1` |
 | `TOOLS` | Build extraction tools | ON | `-DTOOLS=1` |
 | `SCRIPTS` | Script loading method | static | `-DSCRIPTS=dynamic` |
+| `WITH_POSTGRESQL` | Use PostgreSQL instead of MySQL | OFF | `-DWITH_POSTGRESQL=1` |
 | `BUILD_TESTING` | Enable unit tests | OFF | `-DBUILD_TESTING=1` |
 | `WITH_WARNINGS` | Enable compiler warnings | ON | `-DWITH_WARNINGS=0` |
 | `WITH_COREDEBUG` | Enable core debugging | OFF | `-DWITH_COREDEBUG=1` |
