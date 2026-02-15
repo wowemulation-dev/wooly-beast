@@ -190,10 +190,10 @@ cmake --build . --verbose
 
 | Component | Minimum | Recommended |
 |-----------|---------|-------------|
-| **CMake** | 3.16 | Latest |
-| **GCC** | 8.0 | 10+ |
-| **Clang** | 7 | Latest |
-| **Visual Studio** | 2019 | 2022 |
+| **CMake** | 3.18 | Latest |
+| **GCC** | 11 | 13+ |
+| **Clang** | 14 | 18+ |
+| **Visual Studio** | 2022 | 2022 |
 | **RAM** | 4 GB | 8+ GB |
 | **Storage** | 5 GB | 10+ GB |
 
@@ -233,7 +233,7 @@ Include this information:
 **Operating System**: Ubuntu 22.04 / Windows 11 / macOS 13
 **Compiler**: GCC 10.0 / Clang 12 / MSVC 2022
 **CMake Version**: 3.24.1
-**Database**: MySQL 8.0+
+**Database**: MySQL 8.0+ / PostgreSQL 16+
 
 **Error Message**:
 [Paste complete error here with 20 lines of context]

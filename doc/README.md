@@ -11,7 +11,7 @@ This directory contains technical documentation for TrinityCore 3.3.5 developmen
 
 - [MySQL Test Setup](MySQLTestSetup.md) - Set up MySQL development environment
 - [PostgreSQL Test Setup](PostgreSQLTestSetup.md) - Set up PostgreSQL development environment
-- [PostgreSQL Porting Assessment](PostgreSQLPortingAssessment.md) - Technical analysis of PostgreSQL backend
+- [PostgreSQL Testing Plan](PostgreSQLTestingPlan.md) - Testing plan and results for PostgreSQL backend
 
 ## Development Guides
 

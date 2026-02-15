@@ -152,35 +152,48 @@ sql/updates/
 
 ### Step 1: Create PostgreSQL Databases
 
+Create three databases and a `trinity` user with access:
+
 ```bash
-psql -U postgres -f sql/create/create_postgresql.sql
+psql -U postgres <<EOF
+CREATE USER trinity WITH PASSWORD 'trinity';
+CREATE DATABASE trinity_auth OWNER trinity;
+CREATE DATABASE trinity_characters OWNER trinity;
+CREATE DATABASE trinity_world OWNER trinity;
+EOF
 ```
 
-### Step 2: Import PostgreSQL Schemas
+For development, the `test-dev-environment.sh setup-postgres` script automates this using Podman containers.
+
+### Step 2: Generate and Import PostgreSQL Schemas
+
+First generate the PostgreSQL SQL files (see [Quick Start](#quick-start-generate-postgresql-files) above), then import:
 
 ```bash
 # Import base schemas
-psql -U trinity -d trinity_auth -f sql/base/auth_database_postgresql.sql
-psql -U trinity -d trinity_characters -f sql/base/characters_database_postgresql.sql
-psql -U trinity -d trinity_world -f sql/base/TDB_full_world_335.24111_2024_11_22_postgresql.sql
+psql -U trinity -d trinity_auth -f sql/base/postgresql/auth_database.sql
+psql -U trinity -d trinity_characters -f sql/base/postgresql/characters_database.sql
+psql -U trinity -d trinity_world -f sql/base/postgresql/TDB_full_world_335.sql
 ```
+
+Alternatively, the servers can auto-import schemas on first startup when `Updates.EnableDatabases` is configured. See [PostgreSQL Test Setup](../../doc/PostgreSQLTestSetup.md) for details.
 
 ### Step 3: Configure TrinityCore
 
-Update your configuration files to use PostgreSQL:
+Build with `-DWITH_POSTGRESQL=1` and update configuration files:
 
 **authserver.conf:**
 
 ```conf
-LoginDatabaseInfo = "localhost;5432;trinity;trinity;trinity_auth"
+LoginDatabaseInfo = "127.0.0.1;5432;trinity;trinity;trinity_auth"
 ```
 
 **worldserver.conf:**
 
 ```conf
-LoginDatabaseInfo     = "localhost;5432;trinity;trinity;trinity_auth"
-WorldDatabaseInfo     = "localhost;5432;trinity;trinity;trinity_world"
-CharacterDatabaseInfo = "localhost;5432;trinity;trinity;trinity_characters"
+LoginDatabaseInfo     = "127.0.0.1;5432;trinity;trinity;trinity_auth"
+WorldDatabaseInfo     = "127.0.0.1;5432;trinity;trinity;trinity_world"
+CharacterDatabaseInfo = "127.0.0.1;5432;trinity;trinity;trinity_characters"
 ```
 
 ## Data Type Conversions

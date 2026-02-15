@@ -33,7 +33,7 @@
 ## Why Choose TrinityCore?
 
 - **Server Features**: Authentication, character management, and world simulation
-- **Database Support**: MySQL/MariaDB database backend
+- **Database Support**: MySQL/MariaDB and PostgreSQL database backends
 - **Scripting System**: Customize quests, NPCs, and game mechanics
 - **Cross-Platform**: Works on Windows, Linux, and macOS
 - **Community**: Regular updates and community support
@@ -54,9 +54,10 @@ Before starting, make sure you have:
 - **CMake**: Version 3.28 or newer
 - **Git**: For downloading the source code
 
-#### Database
+#### Database (one of)
 
 - **MySQL/MariaDB**: Version 8.0+ recommended
+- **PostgreSQL**: Version 16+ (compile with `-DWITH_POSTGRESQL=1`)
 
 #### Additional Requirements
 
@@ -191,7 +192,7 @@ CREATE DATABASE trinity_characters;
 CREATE DATABASE trinity_world;
 ```
 
-### Import Base Schemas
+### Import Base Schemas (MySQL)
 
 ```bash
 mysql -u root -p trinity_auth < sql/base/auth_database.sql
@@ -200,14 +201,22 @@ mysql -u root -p trinity_characters < sql/base/characters_database.sql
 
 For the world database, you need to download and import the full world database release from the TrinityCore releases page.
 
+For PostgreSQL setup, see [PostgreSQL Test Setup](doc/PostgreSQLTestSetup.md). PostgreSQL SQL files must first be generated using the [conversion tools](contrib/postgres_tools/README.md).
+
 ### Configuration
 
 Edit the configuration files in the `etc/` directory:
 
 ```ini
-LoginDatabaseInfo     = "127.0.0.1;3306;root;password;trinity_auth"
-WorldDatabaseInfo     = "127.0.0.1;3306;root;password;trinity_world"
-CharacterDatabaseInfo = "127.0.0.1;3306;root;password;trinity_characters"
+# MySQL (default)
+LoginDatabaseInfo     = "127.0.0.1;3306;trinity;trinity;trinity_auth"
+WorldDatabaseInfo     = "127.0.0.1;3306;trinity;trinity;trinity_world"
+CharacterDatabaseInfo = "127.0.0.1;3306;trinity;trinity;trinity_characters"
+
+# PostgreSQL (when compiled with WITH_POSTGRESQL=1)
+#LoginDatabaseInfo     = "127.0.0.1;5432;trinity;trinity;trinity_auth"
+#WorldDatabaseInfo     = "127.0.0.1;5432;trinity;trinity;trinity_world"
+#CharacterDatabaseInfo = "127.0.0.1;5432;trinity;trinity;trinity_characters"
 ```
 
 ---
