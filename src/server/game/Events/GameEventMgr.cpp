@@ -213,7 +213,11 @@ void GameEventMgr::LoadFromDB()
     {
         uint32 oldMSTime = getMSTime();
         //                                               0           1                           2                         3          4       5        6             7            8            9
+#ifdef WITH_POSTGRESQL
+        QueryResult result = WorldDatabase.Query("SELECT eventEntry, EXTRACT(EPOCH FROM start_time), EXTRACT(EPOCH FROM end_time), occurence, length, holiday, holidayStage, description, world_event, announce FROM game_event");
+#else
         QueryResult result = WorldDatabase.Query("SELECT eventEntry, UNIX_TIMESTAMP(start_time), UNIX_TIMESTAMP(end_time), occurence, length, holiday, holidayStage, description, world_event, announce FROM game_event");
+#endif
         if (!result)
         {
             mGameEvent.clear();

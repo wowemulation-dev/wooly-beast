@@ -1,18 +1,7 @@
-/*
- * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
+/**
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program. If not, see <http://www.gnu.org/licenses/>.
+ * Copyright 2008 - 2025, TrinityCore and the TrinityCore contributors
  */
 
 #ifndef _WORKERTHREAD_H
@@ -25,18 +14,24 @@
 template <typename T>
 class ProducerConsumerQueue;
 
+#ifdef WITH_POSTGRESQL
+class PostgreSQLConnection;
+typedef PostgreSQLConnection DatabaseConnection;
+#else
 class MySQLConnection;
+typedef MySQLConnection DatabaseConnection;
+#endif
 class SQLOperation;
 
 class TC_DATABASE_API DatabaseWorker
 {
     public:
-        DatabaseWorker(ProducerConsumerQueue<SQLOperation*>* newQueue, MySQLConnection* connection);
+        DatabaseWorker(ProducerConsumerQueue<SQLOperation*>* newQueue, DatabaseConnection* connection);
         ~DatabaseWorker();
 
     private:
         ProducerConsumerQueue<SQLOperation*>* _queue;
-        MySQLConnection* _connection;
+        DatabaseConnection* _connection;
 
         void WorkerThread();
         std::thread _workerThread;

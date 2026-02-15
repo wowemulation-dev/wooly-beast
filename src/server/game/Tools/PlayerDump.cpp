@@ -260,7 +260,15 @@ void PlayerDump::InitializeTables()
         TableStruct t;
         t.TableName = dumpTable.Name;
 
+#ifdef WITH_POSTGRESQL
+        // PostgreSQL uses information_schema instead of DESC
+        QueryResult result = CharacterDatabase.PQuery(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_name = '{}' AND table_schema = 'public' "
+            "ORDER BY ordinal_position", dumpTable.Name);
+#else
         QueryResult result = CharacterDatabase.PQuery("DESC {}", dumpTable.Name);
+#endif
         // prepared statement is correct (checked at startup) so table must exist
         ASSERT(result);
 

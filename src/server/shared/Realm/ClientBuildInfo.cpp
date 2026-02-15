@@ -96,7 +96,7 @@ void LoadBuildInfo()
     }
 
     //                                                        0           1                 2
-    if (QueryResult result = LoginDatabase.Query("SELECT `build`, `platform`, `executableHash` FROM `build_executable_hash`"))
+    if (QueryResult result = LoginDatabase.Query("SELECT build, platform, executableHash FROM build_executable_hash"))
     {
         do
         {

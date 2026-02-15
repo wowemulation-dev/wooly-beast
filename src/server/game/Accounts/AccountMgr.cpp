@@ -68,6 +68,10 @@ AccountOpResult AccountMgr::CreateAccount(std::string username, std::string pass
 
     LoginDatabase.DirectExecute(stmt); // Enforce saving, otherwise AddGroup can fail
 
+    // Verify the account was actually created (INSERT may fail silently)
+    if (!GetId(username))
+        return AccountOpResult::AOR_DB_INTERNAL_ERROR;
+
     stmt = LoginDatabase.GetPreparedStatement(LOGIN_INS_REALM_CHARACTERS_INIT);
     LoginDatabase.Execute(stmt);
 

@@ -1,18 +1,7 @@
-/*
- * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
+/**
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program. If not, see <http://www.gnu.org/licenses/>.
+ * Copyright 2008 - 2025, TrinityCore and the TrinityCore contributors
  */
 
 #include "DatabaseLoader.h"
@@ -21,7 +10,12 @@
 #include "DBUpdater.h"
 #include "Log.h"
 
+#ifdef WITH_POSTGRESQL
+// PostgreSQL error codes
+#define ER_BAD_DB_ERROR 1049  // Database doesn't exist - using MySQL error code for compatibility
+#else
 #include <mysqld_error.h>
+#endif
 
 DatabaseLoader::DatabaseLoader(std::string const& logger, uint32 const defaultUpdateMask)
     : _logger(logger), _autoSetup(sConfigMgr->GetBoolDefault("Updates.AutoSetup", true)),
@@ -179,9 +173,18 @@ bool DatabaseLoader::Process(std::queue<Predicate>& queue)
     return true;
 }
 
+#ifdef WITH_POSTGRESQL
+template TC_DATABASE_API
+DatabaseLoader& DatabaseLoader::AddDatabase<PostgreSQLLoginDatabaseConnection>(DatabaseWorkerPool<PostgreSQLLoginDatabaseConnection>&, std::string const&);
+template TC_DATABASE_API
+DatabaseLoader& DatabaseLoader::AddDatabase<PostgreSQLCharacterDatabaseConnection>(DatabaseWorkerPool<PostgreSQLCharacterDatabaseConnection>&, std::string const&);
+template TC_DATABASE_API
+DatabaseLoader& DatabaseLoader::AddDatabase<PostgreSQLWorldDatabaseConnection>(DatabaseWorkerPool<PostgreSQLWorldDatabaseConnection>&, std::string const&);
+#else
 template TC_DATABASE_API
 DatabaseLoader& DatabaseLoader::AddDatabase<LoginDatabaseConnection>(DatabaseWorkerPool<LoginDatabaseConnection>&, std::string const&);
 template TC_DATABASE_API
 DatabaseLoader& DatabaseLoader::AddDatabase<CharacterDatabaseConnection>(DatabaseWorkerPool<CharacterDatabaseConnection>&, std::string const&);
 template TC_DATABASE_API
 DatabaseLoader& DatabaseLoader::AddDatabase<WorldDatabaseConnection>(DatabaseWorkerPool<WorldDatabaseConnection>&, std::string const&);
+#endif

@@ -1,18 +1,7 @@
-/*
- * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
+/**
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program. If not, see <http://www.gnu.org/licenses/>.
+ * Copyright 2008 - 2025, TrinityCore and the TrinityCore contributors
  */
 
 #ifndef QUERYRESULT_H
@@ -22,6 +11,11 @@
 #include "DatabaseEnvFwd.h"
 #include <vector>
 
+#ifdef WITH_POSTGRESQL
+// When building with PostgreSQL, include PostgreSQL result classes
+#include "PostgreSQL/PostgreSQLResultSet.h"
+#else
+// When building with MySQL, define MySQL result classes
 class TC_DATABASE_API ResultSet
 {
     public:
@@ -85,5 +79,6 @@ class TC_DATABASE_API PreparedResultSet
         PreparedResultSet(PreparedResultSet const& right) = delete;
         PreparedResultSet& operator=(PreparedResultSet const& right) = delete;
 };
+#endif // WITH_POSTGRESQL
 
 #endif

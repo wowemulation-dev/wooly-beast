@@ -1,18 +1,7 @@
-/*
- * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
+/**
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program. If not, see <http://www.gnu.org/licenses/>.
+ * Copyright 2008 - 2025, TrinityCore and the TrinityCore contributors
  */
 
 #include "Common.h"
@@ -32,7 +21,9 @@
 #include "Locales.h"
 #include "MapManager.h"
 #include "Metric.h"
+#ifndef WITH_POSTGRESQL
 #include "MySQLThreading.h"
+#endif
 #include "ObjectAccessor.h"
 #include "OpenSSLCrypto.h"
 #include "OutdoorPvP/OutdoorPvPMgr.h"
@@ -651,7 +642,9 @@ bool LoadRealmInfo(Trinity::Asio::IoContext& ioContext)
 /// Initialize connection to the databases
 bool StartDB()
 {
+#ifndef WITH_POSTGRESQL
     MySQL::Library_Init();
+#endif
 
     // Load databases
     DatabaseLoader loader("server.worldserver", DatabaseLoader::DATABASE_NONE);
@@ -691,7 +684,9 @@ void StopDB()
     WorldDatabase.Close();
     LoginDatabase.Close();
 
+#ifndef WITH_POSTGRESQL
     MySQL::Library_End();
+#endif
 }
 
 /// Clear 'online' status for all accounts with characters in this realm

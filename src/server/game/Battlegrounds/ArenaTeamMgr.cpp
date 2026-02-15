@@ -96,9 +96,15 @@ void ArenaTeamMgr::LoadArenaTeams()
     CharacterDatabase.DirectExecute("DELETE FROM arena_team_member WHERE arenaTeamId NOT IN (SELECT arenaTeamId FROM arena_team)");       // One-time query
 
     //                                                        0        1         2         3          4              5            6            7           8
+#ifdef WITH_POSTGRESQL
+    QueryResult result = CharacterDatabase.Query("SELECT arenaTeamId, name, captainGuid, type, backgroundColor, emblemStyle, emblemColor, borderStyle, borderColor, "
+    //      9        10        11         12           13       14
+        "rating, weekGames, weekWins, seasonGames, seasonWins, \"rank\" FROM arena_team ORDER BY arenaTeamId ASC");
+#else
     QueryResult result = CharacterDatabase.Query("SELECT arenaTeamId, name, captainGuid, type, backgroundColor, emblemStyle, emblemColor, borderStyle, borderColor, "
     //      9        10        11         12           13       14
         "rating, weekGames, weekWins, seasonGames, seasonWins, `rank` FROM arena_team ORDER BY arenaTeamId ASC");
+#endif
 
     if (!result)
     {

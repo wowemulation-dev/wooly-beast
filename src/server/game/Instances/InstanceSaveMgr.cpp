@@ -268,24 +268,47 @@ void InstanceSaveManager::LoadInstances()
     uint32 oldMSTime = getMSTime();
 
     // Delete expired instances (Instance related spawns are removed in the following cleanup queries)
+#ifdef WITH_POSTGRESQL
+    CharacterDatabase.DirectExecute("DELETE FROM instance i USING instance_reset ir WHERE mapid = map AND i.difficulty = ir.difficulty "
+                                    "AND ((i.resettime > 0 AND i.resettime < EXTRACT(EPOCH FROM NOW())) OR (ir.resettime IS NOT NULL AND ir.resettime < EXTRACT(EPOCH FROM NOW())))");
+#else
     CharacterDatabase.DirectExecute("DELETE i FROM instance i LEFT JOIN instance_reset ir ON mapid = map AND i.difficulty = ir.difficulty "
                                     "WHERE (i.resettime > 0 AND i.resettime < UNIX_TIMESTAMP()) OR (ir.resettime IS NOT NULL AND ir.resettime < UNIX_TIMESTAMP())");
+#endif
 
     // Delete invalid character_instance and group_instance references
+#ifdef WITH_POSTGRESQL
+    CharacterDatabase.DirectExecute("DELETE FROM character_instance WHERE guid NOT IN (SELECT guid FROM characters)");
+    CharacterDatabase.DirectExecute("DELETE FROM group_instance WHERE guid NOT IN (SELECT guid FROM \"groups\")");
+#else
     CharacterDatabase.DirectExecute("DELETE ci.* FROM character_instance AS ci LEFT JOIN characters AS c ON ci.guid = c.guid WHERE c.guid IS NULL");
     CharacterDatabase.DirectExecute("DELETE gi.* FROM group_instance     AS gi LEFT JOIN `groups`   AS g ON gi.guid = g.guid WHERE g.guid IS NULL");
+#endif
 
     // Delete invalid instance references
+#ifdef WITH_POSTGRESQL
+    CharacterDatabase.DirectExecute("DELETE FROM instance WHERE id NOT IN (SELECT instance FROM character_instance) AND id NOT IN (SELECT instance FROM group_instance)");
+#else
     CharacterDatabase.DirectExecute("DELETE i.* FROM instance AS i LEFT JOIN character_instance AS ci ON i.id = ci.instance LEFT JOIN group_instance AS gi ON i.id = gi.instance WHERE ci.guid IS NULL AND gi.guid IS NULL");
+#endif
 
     // Delete invalid references to instance
     CharacterDatabase.DirectExecute("DELETE FROM respawn WHERE instanceId > 0 AND instanceId NOT IN (SELECT id FROM instance)");
+#ifdef WITH_POSTGRESQL
+    CharacterDatabase.DirectExecute("DELETE FROM character_instance WHERE instance > 0 AND instance NOT IN (SELECT id FROM instance)");
+    CharacterDatabase.DirectExecute("DELETE FROM group_instance WHERE instance > 0 AND instance NOT IN (SELECT id FROM instance)");
+#else
     CharacterDatabase.DirectExecute("DELETE tmp.* FROM character_instance AS tmp LEFT JOIN instance ON tmp.instance = instance.id WHERE tmp.instance > 0 AND instance.id IS NULL");
     CharacterDatabase.DirectExecute("DELETE tmp.* FROM group_instance     AS tmp LEFT JOIN instance ON tmp.instance = instance.id WHERE tmp.instance > 0 AND instance.id IS NULL");
+#endif
 
     // Clean invalid references to instance
     CharacterDatabase.DirectExecute("UPDATE corpse SET instanceId = 0 WHERE instanceId > 0 AND instanceId NOT IN (SELECT id FROM instance)");
+#ifdef WITH_POSTGRESQL
+    CharacterDatabase.DirectExecute("UPDATE characters SET instance_id = 0 WHERE instance_id > 0 AND instance_id NOT IN (SELECT id FROM instance)");
+#else
     CharacterDatabase.DirectExecute("UPDATE characters AS tmp LEFT JOIN instance ON tmp.instance_id = instance.id SET tmp.instance_id = 0 WHERE tmp.instance_id > 0 AND instance.id IS NULL");
+#endif
 
     // Initialize instance id storage (Needs to be done after the trash has been clean out)
     sMapMgr->InitInstanceIds();

@@ -1,18 +1,7 @@
-/*
- * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
+/**
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program. If not, see <http://www.gnu.org/licenses/>.
+ * Copyright 2008 - 2025, TrinityCore and the TrinityCore contributors
  */
 
 #include "DBUpdater.h"
@@ -25,20 +14,43 @@
 #include "QueryResult.h"
 #include "StartProcess.h"
 #include "UpdateFetcher.h"
+#include "Transaction.h"
+#ifdef WITH_POSTGRESQL
+#include "Implementation/PostgreSQL/LoginDatabase.h"
+#include "Implementation/PostgreSQL/WorldDatabase.h"
+#include "Implementation/PostgreSQL/CharacterDatabase.h"
+#include "StringFormat.h"
+#include <libpq-fe.h>
+#else
+#include "Implementation/LoginDatabase.h"
+#include "Implementation/WorldDatabase.h"
+#include "Implementation/CharacterDatabase.h"
+#endif
 #include <boost/filesystem/operations.hpp>
 #include <fstream>
 #include <iostream>
+#include <sstream>
 
 std::string DBUpdaterUtil::GetCorrectedMySQLExecutable()
 {
+#ifdef WITH_POSTGRESQL
+    // PostgreSQL doesn't use an external executable for updates
+    return "";
+#else
     if (!corrected_path().empty())
         return corrected_path();
     else
         return BuiltInConfig::GetMySQLExecutable();
+#endif
 }
 
 bool DBUpdaterUtil::CheckExecutable()
 {
+#ifdef WITH_POSTGRESQL
+    // PostgreSQL doesn't use an external executable for updates
+    // Updates are handled through libpq directly
+    return true;
+#else
     boost::filesystem::path exe(GetCorrectedMySQLExecutable());
     if (!is_regular_file(exe))
     {
@@ -56,6 +68,7 @@ bool DBUpdaterUtil::CheckExecutable()
         return false;
     }
     return true;
+#endif
 }
 
 std::string& DBUpdaterUtil::corrected_path()
@@ -64,6 +77,95 @@ std::string& DBUpdaterUtil::corrected_path()
     return path;
 }
 
+// Template specializations
+#ifdef WITH_POSTGRESQL
+// PostgreSQL Auth Database
+template<>
+std::string DBUpdater<PostgreSQLLoginDatabaseConnection>::GetConfigEntry()
+{
+    return "Updates.Auth";
+}
+
+template<>
+std::string DBUpdater<PostgreSQLLoginDatabaseConnection>::GetTableName()
+{
+    return "Auth";
+}
+
+template<>
+std::string DBUpdater<PostgreSQLLoginDatabaseConnection>::GetBaseFile()
+{
+    return BuiltInConfig::GetSourceDirectory() +
+        "/sql/base/postgresql/auth_database.sql";
+}
+
+template<>
+bool DBUpdater<PostgreSQLLoginDatabaseConnection>::IsEnabled(uint32 const updateMask)
+{
+    return (updateMask & DatabaseLoader::DATABASE_LOGIN) ? true : false;
+}
+
+// PostgreSQL World Database
+template<>
+std::string DBUpdater<PostgreSQLWorldDatabaseConnection>::GetConfigEntry()
+{
+    return "Updates.World";
+}
+
+template<>
+std::string DBUpdater<PostgreSQLWorldDatabaseConnection>::GetTableName()
+{
+    return "World";
+}
+
+template<>
+std::string DBUpdater<PostgreSQLWorldDatabaseConnection>::GetBaseFile()
+{
+    // For PostgreSQL, use the converted world database in postgresql subdirectory
+    // The TDB dump should be converted and placed there manually
+    return BuiltInConfig::GetSourceDirectory() +
+        "/sql/base/postgresql/TDB_full_world_335.sql";
+}
+
+template<>
+bool DBUpdater<PostgreSQLWorldDatabaseConnection>::IsEnabled(uint32 const updateMask)
+{
+    return (updateMask & DatabaseLoader::DATABASE_WORLD) ? true : false;
+}
+
+template<>
+BaseLocation DBUpdater<PostgreSQLWorldDatabaseConnection>::GetBaseLocationType()
+{
+    return LOCATION_REPOSITORY;
+}
+
+// PostgreSQL Character Database
+template<>
+std::string DBUpdater<PostgreSQLCharacterDatabaseConnection>::GetConfigEntry()
+{
+    return "Updates.Character";
+}
+
+template<>
+std::string DBUpdater<PostgreSQLCharacterDatabaseConnection>::GetTableName()
+{
+    return "Character";
+}
+
+template<>
+std::string DBUpdater<PostgreSQLCharacterDatabaseConnection>::GetBaseFile()
+{
+    return BuiltInConfig::GetSourceDirectory() +
+        "/sql/base/postgresql/characters_database.sql";
+}
+
+template<>
+bool DBUpdater<PostgreSQLCharacterDatabaseConnection>::IsEnabled(uint32 const updateMask)
+{
+    return (updateMask & DatabaseLoader::DATABASE_CHARACTER) ? true : false;
+}
+
+#else
 // Auth Database
 template<>
 std::string DBUpdater<LoginDatabaseConnection>::GetConfigEntry()
@@ -149,6 +251,7 @@ bool DBUpdater<CharacterDatabaseConnection>::IsEnabled(uint32 const updateMask)
     // This way silences warnings under msvc
     return (updateMask & DatabaseLoader::DATABASE_CHARACTER) ? true : false;
 }
+#endif  // End of MySQL-specific template specializations
 
 // All
 template<class T>
@@ -170,6 +273,55 @@ bool DBUpdater<T>::Create(DatabaseWorkerPool<T>& pool)
 
     TC_LOG_INFO("sql.updates", "Creating database \"{}\"...", pool.GetConnectionInfo()->database);
 
+#ifdef WITH_POSTGRESQL
+    // For PostgreSQL, use libpq directly to create the database
+    // We can't use the pool connection because it tries to connect to a non-existent database
+
+    // Build connection string to connect to 'postgres' database
+    std::stringstream connStr;
+    connStr << "host=" << pool.GetConnectionInfo()->host
+            << " port=" << pool.GetConnectionInfo()->port_or_socket
+            << " dbname=postgres"  // Connect to default postgres database
+            << " user=" << pool.GetConnectionInfo()->user
+            << " password=" << pool.GetConnectionInfo()->password
+            << " connect_timeout=10"
+            << " client_encoding=UTF8";
+
+    PGconn* conn = PQconnectdb(connStr.str().c_str());
+
+    if (PQstatus(conn) != CONNECTION_OK)
+    {
+        TC_LOG_FATAL("sql.updates", "Failed to connect to PostgreSQL server to create database: {}",
+            PQerrorMessage(conn));
+        PQfinish(conn);
+        return false;
+    }
+
+    // Create the database
+    // Use template0 to avoid collation conflicts with template1
+    std::string createQuery = Trinity::StringFormat(
+        "CREATE DATABASE \"{}\" WITH TEMPLATE = template0 ENCODING = 'UTF8' LC_COLLATE = 'C' LC_CTYPE = 'C'",
+        pool.GetConnectionInfo()->database);
+
+    PGresult* result = PQexec(conn, createQuery.c_str());
+    ExecStatusType status = PQresultStatus(result);
+    bool success = (status == PGRES_COMMAND_OK);
+
+    if (!success)
+    {
+        TC_LOG_FATAL("sql.updates", "Failed to create database {}: {}",
+            pool.GetConnectionInfo()->database, PQresultErrorMessage(result));
+        PQclear(result);
+        PQfinish(conn);
+        return false;
+    }
+
+    PQclear(result);
+    PQfinish(conn);
+
+    TC_LOG_INFO("sql.updates", "Done.");
+    return true;
+#else
     // Path of temp file
     static Path const temp("create_table.sql");
 
@@ -192,7 +344,7 @@ bool DBUpdater<T>::Create(DatabaseWorkerPool<T>& pool)
     }
     catch (UpdateException&)
     {
-        TC_LOG_FATAL("sql.updates", "Failed to create database {}! Does the user (named in *.conf) have `CREATE`, `ALTER`, `DROP`, `INSERT` and `DELETE` privileges on the MySQL server?", pool.GetConnectionInfo()->database);
+        TC_LOG_FATAL("sql.updates", "Failed to create database {}! Does the user (named in *.conf) have `CREATE`, `ALTER`, `DROP`, `INSERT` and `DELETE` privileges on the database server?", pool.GetConnectionInfo()->database);
         boost::filesystem::remove(temp);
         return false;
     }
@@ -200,6 +352,7 @@ bool DBUpdater<T>::Create(DatabaseWorkerPool<T>& pool)
     TC_LOG_INFO("sql.updates", "Done.");
     boost::filesystem::remove(temp);
     return true;
+#endif
 }
 
 template<class T>
@@ -251,7 +404,11 @@ template<class T>
 bool DBUpdater<T>::Populate(DatabaseWorkerPool<T>& pool)
 {
     {
+#ifdef WITH_POSTGRESQL
+        QueryResult const result = Retrieve(pool, "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'");
+#else
         QueryResult const result = Retrieve(pool, "SHOW TABLES");
+#endif
         if (result && (result->GetRowCount() > 0))
             return true;
     }
@@ -327,10 +484,50 @@ void DBUpdater<T>::ApplyFile(DatabaseWorkerPool<T>& pool, Path const& path)
 }
 
 template<class T>
-void DBUpdater<T>::ApplyFile(DatabaseWorkerPool<T>& pool, std::string const& host, std::string const& user,
-    std::string const& password, std::string const& port_or_socket, std::string const& database, std::string const& ssl,
+void DBUpdater<T>::ApplyFile(DatabaseWorkerPool<T>& pool, [[maybe_unused]] std::string const& host, [[maybe_unused]] std::string const& user,
+    [[maybe_unused]] std::string const& password, [[maybe_unused]] std::string const& port_or_socket, std::string const& database, [[maybe_unused]] std::string const& ssl,
     Path const& path)
 {
+#ifdef WITH_POSTGRESQL
+    // PostgreSQL: Apply file directly through connection instead of external tool
+    TC_LOG_INFO("sql.updates", "Applying update \"{}\" to database \"{}\"...", path.filename().generic_string(), database);
+
+    try
+    {
+        // Read the SQL file
+        std::ifstream sqlFile(path.generic_string());
+        if (!sqlFile.is_open())
+        {
+            TC_LOG_ERROR("sql.updates", "Failed to open SQL file: {}", path.generic_string());
+            throw UpdateException("Failed to open SQL file");
+        }
+
+        std::stringstream buffer;
+        buffer << sqlFile.rdbuf();
+        std::string sql = buffer.str();
+        sqlFile.close();
+
+        // PostgreSQL: Execute the file content directly since we can't use SOURCE command
+        // For simplicity, just execute the entire file content as one statement
+        // PostgreSQL's PQexec can handle multiple statements in one call
+        TC_LOG_DEBUG("sql.updates", "Executing SQL file with {} bytes", sql.length());
+        pool.DirectExecute(sql.c_str());
+
+        TC_LOG_INFO("sql.updates", "Applied update \"{}\" successfully", path.filename().generic_string());
+    }
+    catch (std::exception const& e)
+    {
+        TC_LOG_FATAL("sql.updates", "Applying of file \'{}\' to database \'{}\' failed: {}" \
+            " If you are a user, please pull the latest revision from the repository. "
+            "Also make sure you have not applied any of the databases with your sql client. "
+            "You cannot use auto-update system and import sql files from TrinityCore repository with your sql client. "
+            "If you are a developer, please fix your sql query.",
+            path.generic_string(), database, e.what());
+
+        throw UpdateException("update failed");
+    }
+#else
+    // MySQL: Use external mysql executable
     std::vector<std::string> args;
     args.reserve(9);
 
@@ -413,8 +610,15 @@ void DBUpdater<T>::ApplyFile(DatabaseWorkerPool<T>& pool, std::string const& hos
 
         throw UpdateException("update failed");
     }
+#endif
 }
 
+#ifdef WITH_POSTGRESQL
+template class TC_DATABASE_API DBUpdater<PostgreSQLLoginDatabaseConnection>;
+template class TC_DATABASE_API DBUpdater<PostgreSQLWorldDatabaseConnection>;
+template class TC_DATABASE_API DBUpdater<PostgreSQLCharacterDatabaseConnection>;
+#else
 template class TC_DATABASE_API DBUpdater<LoginDatabaseConnection>;
 template class TC_DATABASE_API DBUpdater<WorldDatabaseConnection>;
 template class TC_DATABASE_API DBUpdater<CharacterDatabaseConnection>;
+#endif

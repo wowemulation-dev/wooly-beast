@@ -2218,7 +2218,11 @@ void World::SetInitialWorldSettings()
     sWardenCheckMgr->LoadWardenOverrides();
 
     TC_LOG_INFO("server.loading", "Deleting expired bans...");
+#ifdef WITH_POSTGRESQL
+    LoginDatabase.Execute("DELETE FROM ip_banned WHERE unbandate <= EXTRACT(EPOCH FROM NOW()) AND unbandate<>bandate");      // One-time query
+#else
     LoginDatabase.Execute("DELETE FROM ip_banned WHERE unbandate <= UNIX_TIMESTAMP() AND unbandate<>bandate");      // One-time query
+#endif
 
     TC_LOG_INFO("server.loading", "Initializing quest reset times...");
     InitQuestResetTimes();

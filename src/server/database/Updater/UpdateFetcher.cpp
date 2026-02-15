@@ -70,10 +70,23 @@ void UpdateFetcher::FillFileListRecursively(Path const& path, LocaleFileStorage&
         if (is_directory(itr->path()))
         {
             if (depth < MAX_DEPTH)
+            {
+#ifndef WITH_POSTGRESQL
+                // Skip postgresql subdirectory for MySQL builds
+                if (itr->path().filename() == "postgresql")
+                    continue;
+#endif
                 FillFileListRecursively(itr->path(), storage, state, depth + 1);
+            }
         }
         else if (itr->path().extension() == ".sql")
         {
+#ifdef WITH_POSTGRESQL
+            // For PostgreSQL builds, only include SQL files from postgresql subdirectories
+            if (itr->path().generic_string().find("/postgresql/") == std::string::npos &&
+                itr->path().generic_string().find("\\postgresql\\") == std::string::npos)
+                continue;
+#endif
             TC_LOG_TRACE("sql.updates", "Added locale file \"{}\".", itr->path().filename().generic_string());
 
             LocaleFileEntry const entry = { itr->path(), state };
@@ -97,32 +110,105 @@ UpdateFetcher::DirectoryStorage UpdateFetcher::ReceiveIncludedDirectories() cons
 {
     DirectoryStorage directories;
 
+#ifdef WITH_POSTGRESQL
+    QueryResult const result = _retrieve("SELECT path, state FROM updates_include");
+#else
     QueryResult const result = _retrieve("SELECT `path`, `state` FROM `updates_include`");
-    if (!result)
-        return directories;
+#endif
 
-    do
+    // Process results if available
+    if (result)
     {
-        Field* fields = result->Fetch();
-
-        std::string path = fields[0].GetString();
-        if (path.substr(0, 1) == "$")
-            path = _sourceDirectory->generic_string() + path.substr(1);
-
-        Path const p(path);
-
-        if (!is_directory(p))
+        do
         {
-            TC_LOG_WARN("sql.updates", "DBUpdater: Given update include directory \"{}\" does not exist, skipped!", p.generic_string());
-            continue;
+            Field* fields = result->Fetch();
+
+            std::string path = fields[0].GetString();
+            if (path.substr(0, 1) == "$")
+                path = _sourceDirectory->generic_string() + path.substr(1);
+
+            Path const p(path);
+
+            if (!is_directory(p))
+            {
+                TC_LOG_WARN("sql.updates", "DBUpdater: Given update include directory \"{}\" does not exist, skipped!", p.generic_string());
+                continue;
+            }
+
+            DirectoryEntry const entry = { p, AppliedFileEntry::StateConvert(fields[1].GetString()) };
+            directories.push_back(entry);
+
+            TC_LOG_TRACE("sql.updates", "Added applied file \"{}\" from remote.", p.filename().generic_string());
+
+        } while (result->NextRow());
+    }
+
+    // Fallback mechanism: if no directories were found, add default paths
+    if (directories.empty())
+    {
+        TC_LOG_WARN("sql.updates", "No update directories found in updates_include table. Using default paths as fallback.");
+
+        // Determine database name from the table query
+        std::string dbName;
+#ifdef WITH_POSTGRESQL
+        QueryResult dbResult = _retrieve("SELECT current_database()");
+#else
+        QueryResult dbResult = _retrieve("SELECT DATABASE()");
+#endif
+        if (dbResult)
+        {
+            dbName = dbResult->Fetch()[0].GetString();
+
+            // Extract database type (auth, characters, world) from database name
+            std::string dbType;
+            if (dbName.find("auth") != std::string::npos)
+                dbType = "auth";
+            else if (dbName.find("characters") != std::string::npos || dbName.find("character") != std::string::npos)
+                dbType = "characters";
+            else if (dbName.find("world") != std::string::npos)
+                dbType = "world";
+
+            if (!dbType.empty())
+            {
+                // Add default paths based on database type
+                // MySQL files stay in original location, PostgreSQL uses postgresql subdirectory
+#ifdef WITH_POSTGRESQL
+                std::string updatePath = _sourceDirectory->generic_string() + "/sql/updates/" + dbType + "/3.3.5/postgresql";
+#else
+                std::string updatePath = _sourceDirectory->generic_string() + "/sql/updates/" + dbType + "/3.3.5";
+#endif
+                std::string customPath = _sourceDirectory->generic_string() + "/sql/custom/" + dbType;
+
+                // Add paths if they exist
+                Path p(updatePath);
+                if (is_directory(p))
+                {
+                    directories.push_back({ p, RELEASED });
+                    TC_LOG_INFO("sql.updates", "Added default update path: {}", updatePath);
+                }
+
+                p = Path(customPath);
+                if (is_directory(p))
+                {
+                    directories.push_back({ p, RELEASED });
+                    TC_LOG_INFO("sql.updates", "Added default custom path: {}", customPath);
+                }
+
+                // Include archived updates - PostgreSQL uses postgresql/ subdirectory
+#ifdef WITH_POSTGRESQL
+                std::string archivePath = _sourceDirectory->generic_string() + "/sql/old/3.3.5a/" + dbType + "/postgresql";
+#else
+                std::string archivePath = _sourceDirectory->generic_string() + "/sql/old/3.3.5a/" + dbType;
+#endif
+                p = Path(archivePath);
+                if (is_directory(p))
+                {
+                    directories.push_back({ p, ARCHIVED });
+                    TC_LOG_INFO("sql.updates", "Added default archive path: {}", archivePath);
+                }
+            }
         }
-
-        DirectoryEntry const entry = { p, AppliedFileEntry::StateConvert(fields[1].GetString()) };
-        directories.push_back(entry);
-
-        TC_LOG_TRACE("sql.updates", "Added applied file \"{}\" from remote.", p.filename().generic_string());
-
-    } while (result->NextRow());
+    }
 
     return directories;
 }
@@ -131,7 +217,11 @@ UpdateFetcher::AppliedFileStorage UpdateFetcher::ReceiveAppliedFiles() const
 {
     AppliedFileStorage map;
 
+#ifdef WITH_POSTGRESQL
+    QueryResult result = _retrieve("SELECT name, hash, state, EXTRACT(EPOCH FROM timestamp)::bigint AS timestamp FROM updates ORDER BY name ASC");
+#else
     QueryResult result = _retrieve("SELECT `name`, `hash`, `state`, UNIX_TIMESTAMP(`timestamp`) FROM `updates` ORDER BY `name` ASC");
+#endif
     if (!result)
         return map;
 
@@ -324,6 +414,16 @@ UpdateResult UpdateFetcher::Update(bool const redundancyChecks,
     {
         bool const doCleanup = (cleanDeadReferencesMaxCount < 0) || (applied.size() <= static_cast<size_t>(cleanDeadReferencesMaxCount));
 
+        // Log the directories that were searched for debugging
+        DirectoryStorage searchedDirectories = ReceiveIncludedDirectories();
+        TC_LOG_DEBUG("sql.updates", "Searched {} directories for update files:", searchedDirectories.size());
+        for (auto const& dir : searchedDirectories)
+        {
+            TC_LOG_DEBUG("sql.updates", "  - {} (state: {})",
+                dir.path.generic_string(),
+                dir.state == RELEASED ? "RELEASED" : "ARCHIVED");
+        }
+
         for (auto const& entry : applied)
         {
             TC_LOG_WARN("sql.updates", ">> The file \'{}\' was applied to the database, but is missing in" \
@@ -361,8 +461,16 @@ uint32 UpdateFetcher::Apply(Path const& path) const
 
 void UpdateFetcher::UpdateEntry(AppliedFileEntry const& entry, uint32 const speed) const
 {
+#ifdef WITH_POSTGRESQL
+    // PostgreSQL uses INSERT ... ON CONFLICT DO UPDATE
+    std::string const update = "INSERT INTO updates (name, hash, state, speed) VALUES ('" +
+        entry.name + "', '" + entry.hash + "', '" + entry.GetStateAsString() + "', " + std::to_string(speed) +
+        ") ON CONFLICT (name) DO UPDATE SET hash = EXCLUDED.hash, state = EXCLUDED.state, speed = EXCLUDED.speed";
+#else
+    // MySQL uses REPLACE INTO
     std::string const update = "REPLACE INTO `updates` (`name`, `hash`, `state`, `speed`) VALUES (\"" +
         entry.name + "\", \"" + entry.hash + "\", \'" + entry.GetStateAsString() + "\', " + std::to_string(speed) + ")";
+#endif
 
     // Update database
     _apply(update);
@@ -372,7 +480,11 @@ void UpdateFetcher::RenameEntry(std::string const& from, std::string const& to) 
 {
     // Delete the target if it exists
     {
+#ifdef WITH_POSTGRESQL
+        std::string const update = "DELETE FROM updates WHERE name='" + to + "'";
+#else
         std::string const update = "DELETE FROM `updates` WHERE `name`=\"" + to + "\"";
+#endif
 
         // Update database
         _apply(update);
@@ -380,7 +492,11 @@ void UpdateFetcher::RenameEntry(std::string const& from, std::string const& to) 
 
     // Rename
     {
+#ifdef WITH_POSTGRESQL
+        std::string const update = "UPDATE updates SET name='" + to + "' WHERE name='" + from + "'";
+#else
         std::string const update = "UPDATE `updates` SET `name`=\"" + to + "\" WHERE `name`=\"" + from + "\"";
+#endif
 
         // Update database
         _apply(update);
@@ -395,11 +511,19 @@ void UpdateFetcher::CleanUp(AppliedFileStorage const& storage) const
     std::stringstream update;
     size_t remaining = storage.size();
 
+#ifdef WITH_POSTGRESQL
+    update << "DELETE FROM updates WHERE name IN(";
+#else
     update << "DELETE FROM `updates` WHERE `name` IN(";
+#endif
 
     for (auto const& entry : storage)
     {
+#ifdef WITH_POSTGRESQL
+        update << "'" << entry.first << "'";
+#else
         update << "\"" << entry.first << "\"";
+#endif
         if ((--remaining) > 0)
             update << ", ";
     }
@@ -412,7 +536,11 @@ void UpdateFetcher::CleanUp(AppliedFileStorage const& storage) const
 
 void UpdateFetcher::UpdateState(std::string const& name, State const state) const
 {
+#ifdef WITH_POSTGRESQL
+    std::string const update = "UPDATE updates SET state='" + AppliedFileEntry::StateConvert(state) + "' WHERE name='" + name + "'";
+#else
     std::string const update = "UPDATE `updates` SET `state`=\'" + AppliedFileEntry::StateConvert(state) + "\' WHERE `name`=\"" + name + "\"";
+#endif
 
     // Update database
     _apply(update);

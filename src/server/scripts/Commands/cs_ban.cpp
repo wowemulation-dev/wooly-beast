@@ -277,7 +277,11 @@ public:
 
     static bool HandleBanInfoHelper(uint32 accountId, char const* accountName, ChatHandler* handler)
     {
+#ifdef WITH_POSTGRESQL
+        QueryResult result = LoginDatabase.PQuery("SELECT TO_TIMESTAMP(bandate), unbandate-bandate, active, unbandate, banreason, bannedby FROM account_banned WHERE id = '{}' ORDER BY bandate ASC", accountId);
+#else
         QueryResult result = LoginDatabase.PQuery("SELECT FROM_UNIXTIME(bandate), unbandate-bandate, active, unbandate, banreason, bannedby FROM account_banned WHERE id = '{}' ORDER BY bandate ASC", accountId);
+#endif
         if (!result)
         {
             handler->PSendSysMessage(LANG_BANINFO_NOACCOUNTBAN, accountName);
@@ -376,7 +380,11 @@ public:
         std::string IP = ipStr;
 
         LoginDatabase.EscapeString(IP);
+#ifdef WITH_POSTGRESQL
+        QueryResult result = LoginDatabase.PQuery("SELECT ip, TO_TIMESTAMP(bandate), TO_TIMESTAMP(unbandate), unbandate-EXTRACT(EPOCH FROM NOW()), banreason, bannedby, unbandate-bandate FROM ip_banned WHERE ip = '{}'", IP);
+#else
         QueryResult result = LoginDatabase.PQuery("SELECT ip, FROM_UNIXTIME(bandate), FROM_UNIXTIME(unbandate), unbandate-UNIX_TIMESTAMP(), banreason, bannedby, unbandate-bandate FROM ip_banned WHERE ip = '{}'", IP);
+#endif
         if (!result)
         {
             handler->PSendSysMessage(LANG_BANINFO_NOIP);

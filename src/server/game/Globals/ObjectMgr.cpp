@@ -406,7 +406,7 @@ void ObjectMgr::LoadCreatureTemplates()
         // 21
         "scale,"
         // 22
-        "`rank`,"
+        DB_QUOTE_IDENT("rank") ","
         // 23
         "dmgschool,"
         // 24
@@ -663,7 +663,7 @@ void ObjectMgr::LoadCreatureTemplateSpells()
     uint32 oldMSTime = getMSTime();
 
     //                                               0           1       2
-    QueryResult result = WorldDatabase.Query("SELECT CreatureID, `Index`, Spell FROM creature_template_spell");
+    QueryResult result = WorldDatabase.Query("SELECT CreatureID, " DB_QUOTE_IDENT("index") ", Spell FROM creature_template_spell");
 
     if (!result)
     {
@@ -3503,7 +3503,7 @@ void ObjectMgr::LoadItemSetNames()
     }
 
     //                                                  0        1            2
-    QueryResult result = WorldDatabase.Query("SELECT `entry`, `name`, `InventoryType` FROM `item_set_names`");
+    QueryResult result = WorldDatabase.Query("SELECT entry, name, InventoryType FROM item_set_names");
 
     if (!result)
     {
@@ -3573,7 +3573,7 @@ void ObjectMgr::LoadVehicleTemplateAccessories()
     uint32 count = 0;
 
     //                                                  0             1              2          3           4             5
-    QueryResult result = WorldDatabase.Query("SELECT `entry`, `accessory_entry`, `seat_id`, `minion`, `summontype`, `summontimer` FROM `vehicle_template_accessory`");
+    QueryResult result = WorldDatabase.Query("SELECT entry, accessory_entry, seat_id, minion, summontype, summontimer FROM vehicle_template_accessory");
 
     if (!result)
     {
@@ -3663,7 +3663,7 @@ void ObjectMgr::LoadVehicleAccessories()
     uint32 count = 0;
 
     //                                                  0             1             2          3           4             5
-    QueryResult result = WorldDatabase.Query("SELECT `guid`, `accessory_entry`, `seat_id`, `minion`, `summontype`, `summontimer` FROM `vehicle_accessory`");
+    QueryResult result = WorldDatabase.Query("SELECT guid, accessory_entry, seat_id, minion, summontype, summontimer FROM vehicle_accessory");
 
     if (!result)
     {
@@ -3706,7 +3706,7 @@ void ObjectMgr::LoadVehicleSeatAddon()
     uint32 count = 0;
 
     //                                                0            1                  2             3             4             5             6
-    QueryResult result = WorldDatabase.Query("SELECT `SeatEntry`, `SeatOrientation`, `ExitParamX`, `ExitParamY`, `ExitParamZ`, `ExitParamO`, `ExitParamValue` FROM `vehicle_seat_addon`");
+    QueryResult result = WorldDatabase.Query("SELECT SeatEntry, SeatOrientation, ExitParamX, ExitParamY, ExitParamZ, ExitParamO, ExitParamValue FROM vehicle_seat_addon");
 
     if (!result)
     {
@@ -4051,7 +4051,11 @@ void ObjectMgr::LoadPlayerInfo()
     {
         uint32 oldMSTime = getMSTime();
 
+#ifdef WITH_POSTGRESQL
+        QueryResult result = WorldDatabase.PQuery("SELECT raceMask, classMask, skill, \"rank\" FROM playercreateinfo_skills");
+#else
         QueryResult result = WorldDatabase.PQuery("SELECT raceMask, classMask, skill, `rank` FROM playercreateinfo_skills");
+#endif
 
         if (!result)
         {
@@ -5948,7 +5952,12 @@ void ObjectMgr::LoadPageTexts()
     uint32 oldMSTime = getMSTime();
 
     //                                               0    1      2
+#ifdef WITH_POSTGRESQL
+    // PostgreSQL: use lowercase for identifier (text is a reserved word, but works unquoted in column context)
+    QueryResult result = WorldDatabase.Query("SELECT ID, text, NextPageID FROM page_text");
+#else
     QueryResult result = WorldDatabase.Query("SELECT ID, `Text`, NextPageID FROM page_text");
+#endif
 
     if (!result)
     {
@@ -6000,7 +6009,11 @@ void ObjectMgr::LoadPageTextLocales()
     _pageTextLocaleStore.clear();                             // need for reload case
 
     //                                               0   1        2
+#ifdef WITH_POSTGRESQL
+    QueryResult result = WorldDatabase.Query("SELECT ID, locale, text FROM page_text_locale");
+#else
     QueryResult result = WorldDatabase.Query("SELECT ID, locale, `Text` FROM page_text_locale");
+#endif
 
     if (!result)
         return;
@@ -7349,8 +7362,15 @@ void ObjectMgr::SetHighestGuids()
     // Cleanup other tables from nonexistent guids ( >= _hiItemGuid)
     CharacterDatabase.PExecute("DELETE FROM character_inventory WHERE item >= '{}'", GetGenerator<HighGuid::Item>().GetNextAfterMaxUsed());     // One-time query
     CharacterDatabase.PExecute("DELETE FROM mail_items WHERE item_guid >= '{}'", GetGenerator<HighGuid::Item>().GetNextAfterMaxUsed());         // One-time query
+#ifdef WITH_POSTGRESQL
+    CharacterDatabase.PExecute("DELETE FROM auctionbidders WHERE id IN (SELECT id FROM auctionhouse WHERE itemguid >= '{}')",
+        GetGenerator<HighGuid::Item>().GetNextAfterMaxUsed());                                                                                  // One-time query
+    CharacterDatabase.PExecute("DELETE FROM auctionhouse WHERE itemguid >= '{}'",
+        GetGenerator<HighGuid::Item>().GetNextAfterMaxUsed());                                                                                  // One-time query
+#else
     CharacterDatabase.PExecute("DELETE a, ab FROM auctionhouse a LEFT JOIN auctionbidders ab ON ab.id = a.id WHERE itemguid >= '{}'",
         GetGenerator<HighGuid::Item>().GetNextAfterMaxUsed());                                                                                  // One-time query
+#endif
     CharacterDatabase.PExecute("DELETE FROM guild_bank_item WHERE item_guid >= '{}'", GetGenerator<HighGuid::Item>().GetNextAfterMaxUsed());    // One-time query
 
     result = WorldDatabase.Query("SELECT MAX(guid) FROM transports");
@@ -7377,7 +7397,11 @@ void ObjectMgr::SetHighestGuids()
     if (result)
         sGuildMgr->SetNextGuildId((*result)[0].GetUInt32()+1);
 
+#ifdef WITH_POSTGRESQL
+    result = CharacterDatabase.Query("SELECT MAX(guid) FROM \"groups\"");
+#else
     result = CharacterDatabase.Query("SELECT MAX(guid) FROM `groups`");
+#endif
     if (result)
         sGroupMgr->SetGroupDbStoreSize((*result)[0].GetUInt32()+1);
 
@@ -9763,7 +9787,11 @@ void ObjectMgr::LoadBroadcastTexts()
     _broadcastTextStore.clear(); // for reload case
 
     //                                               0   1            2      3      4         5         6         7            8            9            10              11        12
+#ifdef WITH_POSTGRESQL
+    QueryResult result = WorldDatabase.Query("SELECT ID, LanguageID, text, Text1, EmoteID1, EmoteID2, EmoteID3, EmoteDelay1, EmoteDelay2, EmoteDelay3, SoundEntriesID, EmotesID, Flags FROM broadcast_text");
+#else
     QueryResult result = WorldDatabase.Query("SELECT ID, LanguageID, `Text`, Text1, EmoteID1, EmoteID2, EmoteID3, EmoteDelay1, EmoteDelay2, EmoteDelay3, SoundEntriesID, EmotesID, Flags FROM broadcast_text");
+#endif
     if (!result)
     {
         TC_LOG_INFO("server.loading", ">> Loaded 0 broadcast texts. DB table `broadcast_text` is empty.");
@@ -9846,7 +9874,11 @@ void ObjectMgr::LoadBroadcastTextLocales()
     uint32 oldMSTime = getMSTime();
 
     //                                               0   1        2     3
+#ifdef WITH_POSTGRESQL
+    QueryResult result = WorldDatabase.Query("SELECT ID, locale, text, Text1 FROM broadcast_text_locale");
+#else
     QueryResult result = WorldDatabase.Query("SELECT ID, locale, `Text`, Text1 FROM broadcast_text_locale");
+#endif
     if (!result)
     {
         TC_LOG_INFO("server.loading", ">> Loaded 0 broadcast text locales. DB table `broadcast_text_locale` is empty.");

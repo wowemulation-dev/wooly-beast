@@ -1,29 +1,28 @@
-/*
- * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
+/**
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program. If not, see <http://www.gnu.org/licenses/>.
+ * Copyright 2008 - 2025, TrinityCore and the TrinityCore contributors
  */
 
 #include "DatabaseWorkerPool.h"
 #include "AdhocStatement.h"
 #include "Common.h"
 #include "Errors.h"
+#ifdef WITH_POSTGRESQL
+#include "Implementation/PostgreSQL/LoginDatabase.h"
+#include "Implementation/PostgreSQL/WorldDatabase.h"
+#include "Implementation/PostgreSQL/CharacterDatabase.h"
+#else
 #include "Implementation/LoginDatabase.h"
 #include "Implementation/WorldDatabase.h"
 #include "Implementation/CharacterDatabase.h"
+#endif
 #include "Log.h"
+#ifdef WITH_POSTGRESQL
+#include "PostgreSQL/PostgreSQLPreparedStatement.h"
+#else
 #include "MySQLPreparedStatement.h"
+#endif
 #include "PreparedStatement.h"
 #include "ProducerConsumerQueue.h"
 #include "QueryCallback.h"
@@ -31,13 +30,21 @@
 #include "QueryResult.h"
 #include "SQLOperation.h"
 #include "Transaction.h"
+#ifndef WITH_POSTGRESQL
 #include "MySQLWorkaround.h"
 #include <mysqld_error.h>
+#endif
 #ifdef TRINITY_DEBUG
 #include <sstream>
 #include <boost/stacktrace.hpp>
 #endif
 
+#ifdef WITH_POSTGRESQL
+// PostgreSQL error codes
+#define ER_LOCK_DEADLOCK 1213  // Using MySQL error code for compatibility
+#endif
+
+#ifndef WITH_POSTGRESQL
 static consteval uint32 ParseVersionString(std::string_view chars)
 {
     uint32 result = 0;
@@ -68,6 +75,7 @@ static consteval uint32 ParseVersionString(std::string_view chars)
 
     return result;
 }
+#endif
 
 class PingOperation : public SQLOperation
 {
@@ -84,6 +92,9 @@ DatabaseWorkerPool<T>::DatabaseWorkerPool()
     : _queue(new ProducerConsumerQueue<SQLOperation*>()),
       _async_threads(0), _synch_threads(0)
 {
+#ifndef WITH_POSTGRESQL
+    WPFatal(mysql_thread_safe(), "Used MySQL library isn't thread-safe.");
+
     // We only need check compiled version match on Windows
     // because on other platforms ABI compatibility is ensured by SOVERSION
     // and Windows MySQL releases don't even have abi-version-like component in their dll file name
@@ -95,6 +106,7 @@ DatabaseWorkerPool<T>::DatabaseWorkerPool()
 #endif
     WPFatal(mysql_get_client_version() == TRINITY_COMPILED_CLIENT_VERSION, "Used " TRINITY_MYSQL_FLAVOR " library version (%s id %lu) does not match the version id used to compile TrinityCore (id %u). Search on forum for TCE00011.", mysql_get_client_info(), mysql_get_client_version(), TRINITY_COMPILED_CLIENT_VERSION);
 #undef TRINITY_COMPILED_CLIENT_VERSION
+#endif
 #endif
 }
 
@@ -108,7 +120,7 @@ template <class T>
 void DatabaseWorkerPool<T>::SetConnectionInfo(std::string const& infoString,
     uint8 const asyncThreads, uint8 const synchThreads)
 {
-    _connectionInfo = std::make_unique<MySQLConnectionInfo>(infoString);
+    _connectionInfo = std::make_unique<DatabaseConnectionInfo>(infoString);
 
     _async_threads = asyncThreads;
     _synch_threads = synchThreads;
@@ -189,7 +201,11 @@ bool DatabaseWorkerPool<T>::PrepareStatements()
                 if (_preparedStatementSize[i] > 0)
                     continue;
 
+#ifdef WITH_POSTGRESQL
+                if (PostgreSQLPreparedStatement* stmt = connection->m_stmts[i].get())
+#else
                 if (MySQLPreparedStatement* stmt = connection->m_stmts[i].get())
+#endif
                 {
                     uint32 const paramCount = stmt->GetParameterCount();
 
@@ -337,7 +353,7 @@ void DatabaseWorkerPool<T>::DirectCommitTransaction(SQLTransaction<T>& transacti
         return;
     }
 
-    //! Handle MySQL Errno 1213 without extending deadlock to the core itself
+    //! Handle MySQL/PostgreSQL deadlock errors without extending deadlock to the core itself
     /// @todo More elegant way
     if (errorCode == ER_LOCK_DEADLOCK)
     {
@@ -419,11 +435,13 @@ uint32 DatabaseWorkerPool<T>::OpenConnections(InternalIndex type, uint8 numConne
             _connections[type].clear();
             return error;
         }
+#ifndef WITH_POSTGRESQL
         else if (uint32 serverVersion = connection->GetServerVersion(); serverVersion < ParseVersionString(TRINITY_REQUIRED_MYSQL_VERSION))
         {
             TC_LOG_ERROR("sql.driver", "TrinityCore does not support " TRINITY_MYSQL_FLAVOR " versions below " TRINITY_REQUIRED_MYSQL_VERSION " (found id {}, need id >= {}), please update your " TRINITY_MYSQL_FLAVOR " server", serverVersion, ParseVersionString(TRINITY_REQUIRED_MYSQL_VERSION));
             return 1;
         }
+#endif
         else
         {
             _connections[type].push_back(std::move(connection));
@@ -512,19 +530,29 @@ void DatabaseWorkerPool<T>::DirectExecute(char const* sql)
         return;
 
     T* connection = GetFreeConnection();
-    connection->Execute(sql);
+    bool success = connection->Execute(sql);
     connection->Unlock();
+
+    if (!success)
+    {
+        TC_LOG_ERROR("sql.driver", "DirectExecute failed for database '{}'", GetDatabaseName());
+    }
 }
 
 template <class T>
 void DatabaseWorkerPool<T>::DirectExecute(PreparedStatement<T>* stmt)
 {
     T* connection = GetFreeConnection();
-    connection->Execute(stmt);
+    bool success = connection->Execute(stmt);
     connection->Unlock();
 
     //! Delete proxy-class. Not needed anymore
     delete stmt;
+
+    if (!success)
+    {
+        TC_LOG_ERROR("sql.driver", "DirectExecute (prepared) failed for database '{}'", GetDatabaseName());
+    }
 }
 
 template <class T>
@@ -545,6 +573,12 @@ void DatabaseWorkerPool<T>::ExecuteOrAppend(SQLTransaction<T>& trans, PreparedSt
         trans->Append(stmt);
 }
 
+#ifdef WITH_POSTGRESQL
+template class TC_DATABASE_API DatabaseWorkerPool<PostgreSQLLoginDatabaseConnection>;
+template class TC_DATABASE_API DatabaseWorkerPool<PostgreSQLWorldDatabaseConnection>;
+template class TC_DATABASE_API DatabaseWorkerPool<PostgreSQLCharacterDatabaseConnection>;
+#else
 template class TC_DATABASE_API DatabaseWorkerPool<LoginDatabaseConnection>;
 template class TC_DATABASE_API DatabaseWorkerPool<WorldDatabaseConnection>;
 template class TC_DATABASE_API DatabaseWorkerPool<CharacterDatabaseConnection>;
+#endif

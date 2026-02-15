@@ -1,18 +1,7 @@
-/*
- * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
+/**
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program. If not, see <http://www.gnu.org/licenses/>.
+ * Copyright 2008 - 2025, TrinityCore and the TrinityCore contributors
  */
 
 /**
@@ -34,7 +23,9 @@
 #include "IPLocation.h"
 #include "GitRevision.h"
 #include "Locales.h"
+#ifndef WITH_POSTGRESQL
 #include "MySQLThreading.h"
+#endif
 #include "OpenSSLCrypto.h"
 #include "ProcessPriority.h"
 #include "RealmList.h"
@@ -262,7 +253,9 @@ int main(int argc, char** argv)
 /// Initialize connection to the database
 bool StartDB()
 {
+#ifndef WITH_POSTGRESQL
     MySQL::Library_Init();
+#endif
 
     // Load databases
     // NOTE: While authserver is singlethreaded you should keep synch_threads == 1.
@@ -283,7 +276,9 @@ bool StartDB()
 void StopDB()
 {
     LoginDatabase.Close();
+#ifndef WITH_POSTGRESQL
     MySQL::Library_End();
+#endif
 }
 
 void SignalHandler(std::weak_ptr<Trinity::Asio::IoContext> ioContextRef, boost::system::error_code const& error, int /*signalNumber*/)

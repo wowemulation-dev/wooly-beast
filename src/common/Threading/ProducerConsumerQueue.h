@@ -116,6 +116,15 @@ public:
 
         _condition.notify_all();
     }
+
+    /// Signals shutdown without discarding queued items.
+    /// Allows consumers to drain remaining items before exiting.
+    void Shutdown()
+    {
+        std::unique_lock<std::mutex> lock(_queueLock);
+        _shutdown = true;
+        _condition.notify_all();
+    }
 };
 
 #endif // TRINITY_PRODUCER_CONSUMER_QUEUE_H

@@ -65,7 +65,11 @@ void LoadFromDB()
         TC_LOG_INFO("server.loading", ">> Loaded 0 known addons. DB table `addons` is empty!");
 
     oldMSTime = getMSTime();
+#ifdef WITH_POSTGRESQL
+    result = CharacterDatabase.Query("SELECT id, name, version, EXTRACT(EPOCH FROM timestamp) FROM banned_addons ORDER BY timestamp");
+#else
     result = CharacterDatabase.Query("SELECT id, name, version, UNIX_TIMESTAMP(timestamp) FROM banned_addons ORDER BY timestamp");
+#endif
     if (result)
     {
         uint32 count = 0;

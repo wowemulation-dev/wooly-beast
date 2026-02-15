@@ -1,18 +1,7 @@
-/*
- * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
+/**
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program. If not, see <http://www.gnu.org/licenses/>.
+ * Copyright 2008 - 2025, TrinityCore and the TrinityCore contributors
  */
 
 #ifndef _DATABASEWORKERPOOL_H
@@ -29,7 +18,13 @@ template <typename T>
 class ProducerConsumerQueue;
 
 class SQLOperation;
+#ifdef WITH_POSTGRESQL
+struct PostgreSQLConnectionInfo;
+typedef PostgreSQLConnectionInfo DatabaseConnectionInfo;
+#else
 struct MySQLConnectionInfo;
+typedef MySQLConnectionInfo DatabaseConnectionInfo;
+#endif
 
 template <class T>
 class DatabaseWorkerPool
@@ -57,7 +52,7 @@ class DatabaseWorkerPool
         //! Prepares all prepared statements
         bool PrepareStatements();
 
-        inline MySQLConnectionInfo const* GetConnectionInfo() const
+        inline DatabaseConnectionInfo const* GetConnectionInfo() const
         {
             return _connectionInfo.get();
         }
@@ -231,7 +226,7 @@ class DatabaseWorkerPool
         //! Queue shared by async worker threads.
         std::unique_ptr<ProducerConsumerQueue<SQLOperation*>> _queue;
         std::array<std::vector<std::unique_ptr<T>>, IDX_SIZE> _connections;
-        std::unique_ptr<MySQLConnectionInfo> _connectionInfo;
+        std::unique_ptr<DatabaseConnectionInfo> _connectionInfo;
         std::vector<uint8> _preparedStatementSize;
         uint8 _async_threads, _synch_threads;
 #ifdef TRINITY_DEBUG

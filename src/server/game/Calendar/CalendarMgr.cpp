@@ -106,7 +106,11 @@ void CalendarMgr::LoadFromDB()
     oldMSTime = getMSTime();
 
     //                                                       0   1      2        3       4       5            6      7
+#ifdef WITH_POSTGRESQL
+    if (QueryResult result = CharacterDatabase.Query("SELECT id, event, invitee, sender, status, statustime, \"rank\", text FROM calendar_invites"))
+#else
     if (QueryResult result = CharacterDatabase.Query("SELECT id, event, invitee, sender, status, statustime, `rank`, text FROM calendar_invites"))
+#endif
         do
         {
             Field* fields = result->Fetch();
