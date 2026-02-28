@@ -3,11 +3,11 @@ dep/
 contrib/
 
 # Build directories (CMake-fetched dependencies)
-build-335-mysql/
-build-335-postgres/
+build-cata/
+build-cata-postgres/
 build-client-data/
-install-335-mysql/
-install-335-postgres/
+install-cata/
+install-cata-postgres/
 
 # Standard license text
 LICENSE.md
