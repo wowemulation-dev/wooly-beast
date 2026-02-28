@@ -164,10 +164,10 @@ psql -U postgres -f sql/create/create_postgresql.sql
 
 ```bash
 # Import base schemas
-psql -U trinity -d auth -f sql/base/auth_database_postgresql.sql
-psql -U trinity -d characters -f sql/base/characters_database_postgresql.sql
-psql -U trinity -d world -f sql/base/TDB_full_world_cata_postgresql.sql
-psql -U trinity -d hotfixes -f sql/base/hotfixes_database_postgresql.sql
+psql -U trinity -d auth -f sql/base/postgresql/auth_database.sql
+psql -U trinity -d characters -f sql/base/postgresql/characters_database.sql
+psql -U trinity -d world -f sql/base/postgresql/TDB_full_world_442.sql
+psql -U trinity -d hotfixes -f sql/base/postgresql/TDB_full_hotfixes_442.sql
 ```
 
 ### Step 3: Configure TrinityCore

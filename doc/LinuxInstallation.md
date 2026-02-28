@@ -27,10 +27,10 @@ Installing TrinityCore on Linux requires these dependencies. This guide covers *
 
 ### Required Software
 
-- **Compiler**: GCC 8+ or Clang 7+
-- **CMake**: Version 3.24 or newer
-- **Database**: MySQL 5.7+ or MySQL 8.0+
-- **Libraries**: Boost, OpenSSL, Zlib
+- **Compiler**: GCC 11+ or Clang 14+ (C++20 required)
+- **CMake**: Version 3.28 or newer
+- **Database**: MySQL 8.0+ or PostgreSQL 16+
+- **Libraries**: Boost 1.74+, OpenSSL 3.0+, Zlib
 
 ---
 
@@ -151,9 +151,9 @@ EOF
 ## Step 3: Download Source Code
 
 ```bash
-# Clone TrinityCore repository
-git clone https://github.com/TrinityCore/TrinityCore.git
-cd TrinityCore
+# Clone repository
+git clone https://github.com/wowemulation-dev/wooly-beast.git
+cd wooly-beast
 
 # Switch to cata_classic branch
 git checkout cata_classic
@@ -228,9 +228,10 @@ ls ~/server/bin/  # Should show authserver, worldserver, etc.
 | `CMAKE_BUILD_TYPE` | Build optimization | `Release` | `Debug`, `RelWithDebInfo` |
 | `SERVERS` | Build server executables | `ON` | `OFF` (tools only) |
 | `TOOLS` | Build extraction tools | `ON` | `OFF` (servers only) |
-| `SCRIPTS` | Script loading method | `dynamic` | `static`, `none` |
+| `SCRIPTS` | Script loading method | `static` | `dynamic`, `none` |
 | `WITH_WARNINGS` | Show compiler warnings | `ON` | `OFF` |
 | `WITH_COREDEBUG` | Debug information | `OFF` | `ON` |
+| `WITH_POSTGRESQL` | Use PostgreSQL instead of MySQL | `OFF` | `ON` |
 | `BUILD_TESTING` | Enable unit tests | `OFF` | `ON` |
 
 ### Example Configurations
