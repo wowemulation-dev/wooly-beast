@@ -88,6 +88,8 @@ function show_usage() {
     echo "  test                   Test MySQL backend (start bnetserver briefly)"
     echo "  test-postgres          Test PostgreSQL backend"
     echo "  test-both              Test both backends sequentially"
+    echo "  test-pg-console        Run PostgreSQL console database tests"
+    echo "  test-pg-quick          Quick PostgreSQL DB connectivity test"
     echo "  convert-sql            Convert SQL update files to PostgreSQL format"
     echo ""
     echo "Status/Cleanup:"
@@ -640,6 +642,35 @@ function convert_sql() {
     echo "SQL conversion complete"
 }
 
+function test_postgres_console() {
+    echo "Running PostgreSQL console database tests..."
+
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    CONSOLE_TEST="${SCRIPT_DIR}/contrib/postgres_tools/console_db_test.sh"
+
+    if [ ! -f "${CONSOLE_TEST}" ]; then
+        echo "Error: Console test script not found at ${CONSOLE_TEST}"
+        exit 1
+    fi
+
+    # Pass the install directory and run the test
+    INSTALL_DIR="${INSTALL_DIR_POSTGRES}" bash "${CONSOLE_TEST}" "${1:-both}"
+}
+
+function test_postgres_quick() {
+    echo "Running quick PostgreSQL connectivity test..."
+
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    CONSOLE_TEST="${SCRIPT_DIR}/contrib/postgres_tools/console_db_test.sh"
+
+    if [ ! -f "${CONSOLE_TEST}" ]; then
+        echo "Error: Console test script not found at ${CONSOLE_TEST}"
+        exit 1
+    fi
+
+    INSTALL_DIR="${INSTALL_DIR_POSTGRES}" bash "${CONSOLE_TEST}" quick
+}
+
 function show_status() {
     echo "=== Container Status ==="
     if command -v podman &>/dev/null; then
@@ -778,6 +809,12 @@ case "${1:-}" in
         ;;
     test-both)
         test_both
+        ;;
+    test-pg-console)
+        test_postgres_console "${2:-both}"
+        ;;
+    test-pg-quick)
+        test_postgres_quick
         ;;
     convert-sql)
         convert_sql
