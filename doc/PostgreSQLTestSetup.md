@@ -437,12 +437,12 @@ uv run mysql-to-postgres ../../sql/base/characters_database.sql \
 
 # 3. Convert TDB world database
 uv run mysql-to-postgres \
-  ~/Repos/github.com/wowemulation-dev/TDB/cata_classic/25051_2025_05_11/TDB_full_world_442.25051_2025_05_11.sql \
+  ~/Repos/github.com/TrinityCore/TDB/cata_classic/25051_2025_05_11/TDB_full_world_442.25051_2025_05_11.sql \
   ../../sql/base/postgresql/TDB_full_world_442.sql --debug
 
 # 4. Convert TDB hotfixes database
 uv run mysql-to-postgres \
-  ~/Repos/github.com/wowemulation-dev/TDB/cata_classic/25051_2025_05_11/TDB_full_hotfixes_442.25051_2025_05_11.sql \
+  ~/Repos/github.com/TrinityCore/TDB/cata_classic/25051_2025_05_11/TDB_full_hotfixes_442.25051_2025_05_11.sql \
   ../../sql/base/postgresql/TDB_full_hotfixes_442.sql --debug
 
 # 5. Convert update directories
