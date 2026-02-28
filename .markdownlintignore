@@ -1,16 +1,12 @@
 # Third-party dependencies
-dep/
-contrib/
-
-# Build directories (CMake-fetched dependencies)
-build-cata/
-build-cata-postgres/
-build-client-data/
-install-cata/
-install-cata-postgres/
+.venv
+node_modules
+vendor
+target
 
 # Standard license text
 LICENSE.md
 
-# YAML issue templates (not Markdown)
-.github/ISSUE_TEMPLATE/*.yml
+# YAML files (not Markdown)
+.github/workflows/*.yml
+.github/workflows/*.yaml
