@@ -20,13 +20,14 @@ Start the MySQL containers:
 Verify the containers are running:
 
 ```bash
-podman ps | grep trinity-335-mysql
+podman ps | grep trinity-cata-mysql
 ```
 
-Expected output shows three containers:
-- `trinity-335-mysql-auth` (port 33506)
-- `trinity-335-mysql-characters` (port 33507)
-- `trinity-335-mysql-world` (port 33508)
+Expected output shows four containers:
+- `trinity-cata-mysql-auth` (port 33606)
+- `trinity-cata-mysql-characters` (port 33607)
+- `trinity-cata-mysql-world` (port 33608)
+- `trinity-cata-mysql-hotfixes` (port 33609)
 
 The script automatically creates databases and the `trinity` user.
 
@@ -35,10 +36,10 @@ The script automatically creates databases and the `trinity` user.
 The realmlist entry must exist before starting the servers:
 
 ```bash
-podman exec -it trinity-335-mysql-auth mysql -utrinity -ptrinity trinity_auth -e "
+podman exec -it trinity-cata-mysql-auth mysql -utrinity -ptrinity trinity_auth -e "
 DELETE FROM realmlist WHERE id = 1;
 INSERT INTO realmlist (id, name, address, localAddress, localSubnetMask, port, icon, flag, timezone, allowedSecurityLevel, gamebuild)
-VALUES (1, 'Trinity', '127.0.0.1', '127.0.0.1', '255.255.255.0', 8085, 0, 0, 1, 0, 12340);
+VALUES (1, 'Trinity', '127.0.0.1', '127.0.0.1', '255.255.255.0', 8085, 0, 0, 1, 0, 15595);
 "
 ```
 
@@ -49,14 +50,14 @@ Note: This step must be done after the authserver has run at least once to creat
 Create the configuration file:
 
 ```bash
-cp install-335-mysql/etc/authserver.conf.dist install-335-mysql/etc/authserver.conf
+cp install-cata/etc/authserver.conf.dist install-cata/etc/authserver.conf
 ```
 
-Edit `install-335-mysql/etc/authserver.conf` and set:
+Edit `install-cata/etc/authserver.conf` and set:
 
 ```ini
-# Database connection (port 33506 for 3.3.5 branch)
-LoginDatabaseInfo = "127.0.0.1;33506;trinity;trinity;trinity_auth"
+# Database connection (port 33606 for cata_classic branch)
+LoginDatabaseInfo = "127.0.0.1;33606;trinity;trinity;trinity_auth"
 
 # MySQL executable for automatic schema updates
 MySQLExecutable = "/usr/bin/mysql"
@@ -70,16 +71,17 @@ Updates.EnableDatabases = 1
 Create the configuration file:
 
 ```bash
-cp install-335-mysql/etc/worldserver.conf.dist install-335-mysql/etc/worldserver.conf
+cp install-cata/etc/worldserver.conf.dist install-cata/etc/worldserver.conf
 ```
 
-Edit `install-335-mysql/etc/worldserver.conf` and set:
+Edit `install-cata/etc/worldserver.conf` and set:
 
 ```ini
 # Database connections (separate containers on different ports)
-LoginDatabaseInfo     = "127.0.0.1;33506;trinity;trinity;trinity_auth"
-WorldDatabaseInfo     = "127.0.0.1;33508;trinity;trinity;trinity_world"
-CharacterDatabaseInfo = "127.0.0.1;33507;trinity;trinity;trinity_characters"
+LoginDatabaseInfo     = "127.0.0.1;33606;trinity;trinity;trinity_auth"
+WorldDatabaseInfo     = "127.0.0.1;33608;trinity;trinity;trinity_world"
+CharacterDatabaseInfo = "127.0.0.1;33607;trinity;trinity;trinity_characters"
+HotfixDatabaseInfo    = "127.0.0.1;33609;trinity;trinity;trinity_hotfixes"
 
 # Client data location (relative to install directory)
 DataDir = "../build-client-data"
@@ -87,9 +89,9 @@ DataDir = "../build-client-data"
 # MySQL executable for automatic schema updates
 MySQLExecutable = "/usr/bin/mysql"
 
-# Enable automatic updates for world and characters databases only
+# Enable automatic updates for world, characters, and hotfix databases
 # (auth is handled by authserver)
-Updates.EnableDatabases = 6
+Updates.EnableDatabases = 14
 ```
 
 ### Updates.EnableDatabases Values
@@ -98,22 +100,23 @@ The value is a bitmask:
 - 1 = Auth database
 - 2 = Characters database
 - 4 = World database
-- 7 = All databases
+- 8 = Hotfix database
+- 15 = All databases
 
 Recommended setup:
 - authserver: `1` (auth only)
-- worldserver: `6` (characters + world)
+- worldserver: `14` (characters + world + hotfix)
 
 ## 5. Start Servers
 
 The servers will automatically import base schemas from `sql/base/` on first run.
 
-**Important:** Servers must be started from inside the `install-335-mysql/` directory. The `DataDir` configuration uses relative paths (`../build-client-data`) that resolve correctly only when the working directory is the install folder.
+**Important:** Servers must be started from inside the `install-cata/` directory. The `DataDir` configuration uses relative paths (`../build-client-data`) that resolve correctly only when the working directory is the install folder.
 
 Start authserver in one terminal:
 
 ```bash
-cd install-335-mysql
+cd install-cata
 ./bin/authserver
 ```
 
@@ -126,9 +129,9 @@ On first run, authserver will:
 After authserver creates the schema, add the realmlist entry (if not done earlier):
 
 ```bash
-podman exec -it trinity-335-mysql-auth mysql -utrinity -ptrinity trinity_auth -e "
+podman exec -it trinity-cata-mysql-auth mysql -utrinity -ptrinity trinity_auth -e "
 INSERT INTO realmlist (id, name, address, localAddress, localSubnetMask, port, icon, flag, timezone, allowedSecurityLevel, gamebuild)
-VALUES (1, 'Trinity', '127.0.0.1', '127.0.0.1', '255.255.255.0', 8085, 0, 0, 1, 0, 12340)
+VALUES (1, 'Trinity', '127.0.0.1', '127.0.0.1', '255.255.255.0', 8085, 0, 0, 1, 0, 15595)
 ON DUPLICATE KEY UPDATE name='Trinity';
 "
 ```
@@ -136,17 +139,18 @@ ON DUPLICATE KEY UPDATE name='Trinity';
 Start worldserver in another terminal:
 
 ```bash
-cd install-335-mysql
+cd install-cata
 ./bin/worldserver
 ```
 
 On first run, worldserver will:
-1. Connect to all three databases
+1. Connect to all four databases
 2. Import `sql/base/characters_database.sql` if characters is empty
 3. Prompt to import world database (TDB dump required)
-4. Apply pending updates from `sql/updates/`
-5. Load DBC and vmap files
-6. Start listening on port 8085
+4. Import hotfix database if empty
+5. Apply pending updates from `sql/updates/`
+6. Load DBC and vmap files
+7. Start listening on port 8085
 
 ### World Database Setup
 
@@ -156,8 +160,8 @@ When worldserver detects an empty world database, it will prompt for the TDB dum
 2. Pre-import the TDB dump manually:
 
 ```bash
-podman exec -i trinity-335-mysql-world mysql -utrinity -ptrinity trinity_world \
-  < ~/Repos/github.com/wowemulation-dev/TDB/335/25101_2025_10_21/TDB_full_world_335.25101_2025_10_21.sql
+podman exec -i trinity-cata-mysql-world mysql -utrinity -ptrinity trinity_world \
+  < ~/Repos/github.com/TrinityCore/TDB/cata_classic/25051_2025_05_18/TDB_full_world_442.25051_2025_05_18.sql
 ```
 
 ## 6. Expected Startup Indicators
@@ -170,6 +174,7 @@ podman exec -i trinity-335-mysql-world mysql -utrinity -ptrinity trinity_world \
 **worldserver:**
 - `DatabasePool 'trinity_world' opened successfully`
 - `DatabasePool 'trinity_characters' opened successfully`
+- `DatabasePool 'trinity_hotfixes' opened successfully`
 - `Loading DBC files...` (verifies DataDir)
 - `Loading vmaps...` (verifies vmap extraction)
 - `World initialized`
@@ -183,29 +188,16 @@ account create testuser testpass
 account set gmlevel testuser 3 -1
 ```
 
-## 8. Client Connection Test (Optional)
-
-Update the client realmlist:
-
-```bash
-echo "set realmlist 127.0.0.1" > ~/.wine/drive_c/users/Public/WoW/Data/enUS/realmlist.wtf
-```
-
-Launch the client:
-
-```bash
-wine ~/.wine/drive_c/users/Public/WoW/Wow.exe
-```
-
 ## Port Reference
 
-The 3.3.5 branch uses these ports:
+The cata_classic branch uses these ports:
 
 | Service | Port |
 |---------|------|
-| MySQL (auth) | 33506 |
-| MySQL (characters) | 33507 |
-| MySQL (world) | 33508 |
+| MySQL (auth) | 33606 |
+| MySQL (characters) | 33607 |
+| MySQL (world) | 33608 |
+| MySQL (hotfixes) | 33609 |
 | authserver | 3724 |
 | worldserver | 8085 |
 
@@ -219,8 +211,8 @@ The 3.3.5 branch uses these ports:
 ### Database Connection Errors
 
 - Verify containers are running: `podman ps`
-- Check ports are correct (33506/33507/33508 for 3.3.5)
-- Test connection: `podman exec -it trinity-335-mysql-auth mysql -utrinity -ptrinity -e "SELECT 1"`
+- Check ports are correct (33606/33607/33608/33609 for cata_classic)
+- Test connection: `podman exec -it trinity-cata-mysql-auth mysql -utrinity -ptrinity -e "SELECT 1"`
 
 ### Missing DBC/vmap Files
 
@@ -229,7 +221,7 @@ The 3.3.5 branch uses these ports:
 
 ### Realm Not Showing in Client
 
-- Verify realmlist entry exists: `podman exec trinity-335-mysql-auth mysql -utrinity -ptrinity trinity_auth -e "SELECT * FROM realmlist"`
+- Verify realmlist entry exists: `podman exec trinity-cata-mysql-auth mysql -utrinity -ptrinity trinity_auth -e "SELECT * FROM realmlist"`
 - Check authserver started without errors
 - Verify client `realmlist.wtf` points to `127.0.0.1`
 
