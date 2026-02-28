@@ -184,7 +184,7 @@ function convert_sql() {
     if [ -f "$TDB_PATH" ]; then
         uv run mysql-to-postgres \
             "$TDB_PATH" \
-            "$PROJECT_ROOT/sql/base/postgresql/TDB_full_world_335.sql" \
+            "$PROJECT_ROOT/sql/base/postgresql/TDB_full_world_442.sql" \
             --debug
         log_success "World database converted"
     else
@@ -226,7 +226,7 @@ function import_postgres() {
     log_info "Resetting and importing world database (this takes several minutes)..."
     reset_postgres_db "$POSTGRES_WORLD_PORT" "trinity_world"
     PGPASSWORD="$DB_PASSWORD" psql -h 127.0.0.1 -p "$POSTGRES_WORLD_PORT" -U "$DB_USER" -d trinity_world \
-        < "$PROJECT_ROOT/sql/base/postgresql/TDB_full_world_335.sql" 2>&1 | grep -v "^NOTICE:" || true
+        < "$PROJECT_ROOT/sql/base/postgresql/TDB_full_world_442.sql" 2>&1 | grep -v "^NOTICE:" || true
     log_success "World database imported"
 }
 

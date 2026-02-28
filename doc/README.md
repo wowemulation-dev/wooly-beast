@@ -1,6 +1,6 @@
 # Documentation
 
-This directory contains technical documentation for TrinityCore 3.3.5 development.
+This directory contains technical documentation for TrinityCore Cataclysm Classic (4.4.x) development.
 
 ## Getting Started
 

@@ -29,7 +29,7 @@ uv run mysql-to-postgres ../../sql/base/auth_database.sql ../../sql/base/postgre
 uv run mysql-to-postgres ../../sql/base/characters_database.sql ../../sql/base/postgresql/characters_database.sql
 
 # Convert sql/old/ updates (optional, only needed for historical migrations)
-uv run mysql-to-postgres --directory ../../sql/old/3.3.5a ../../sql/old/3.3.5a
+uv run mysql-to-postgres --directory ../../sql/old/4.4.x ../../sql/old/4.4.x
 ```
 
 This creates `postgresql/` subdirectories containing converted SQL files.
