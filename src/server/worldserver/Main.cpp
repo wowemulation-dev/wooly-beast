@@ -35,7 +35,9 @@
 #include "MapManager.h"
 #include "Memory.h"
 #include "Metric.h"
+#ifndef WITH_POSTGRESQL
 #include "MySQLThreading.h"
+#endif
 #include "OpenSSLCrypto.h"
 #include "OutdoorPvP/OutdoorPvPMgr.h"
 #include "ProcessPriority.h"
@@ -651,7 +653,9 @@ std::unique_ptr<Trinity::Net::AsyncAcceptor> StartRaSocketAcceptor(Trinity::Asio
 /// Initialize connection to the databases
 bool StartDB()
 {
+#ifndef WITH_POSTGRESQL
     MySQL::Library_Init();
+#endif
 
     // Load databases
     DatabaseLoader loader("server.worldserver", DatabaseLoader::DATABASE_NONE);
@@ -680,7 +684,9 @@ void StopDB()
     CharacterDatabase.Close();
     LoginDatabase.Close();
 
+#ifndef WITH_POSTGRESQL
     MySQL::Library_End();
+#endif
 }
 
 /// Clear 'online' status for all accounts with characters in this realm

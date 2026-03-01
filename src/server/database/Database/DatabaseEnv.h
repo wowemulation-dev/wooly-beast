@@ -21,10 +21,23 @@
 #include "Define.h"
 #include "DatabaseWorkerPool.h"
 
-#include "Implementation/LoginDatabase.h"
-#include "Implementation/CharacterDatabase.h"
-#include "Implementation/WorldDatabase.h"
-#include "Implementation/HotfixDatabase.h"
+#ifdef WITH_POSTGRESQL
+#define DB_QUOTE_IDENT(x) "\"" x "\""
+#else
+#define DB_QUOTE_IDENT(x) "`" x "`"
+#endif
+
+#ifdef WITH_POSTGRESQL
+#include "Implementation/PostgreSQL/LoginDatabase.h"
+#include "Implementation/PostgreSQL/CharacterDatabase.h"
+#include "Implementation/PostgreSQL/WorldDatabase.h"
+#include "Implementation/PostgreSQL/HotfixDatabase.h"
+#else
+#include "Implementation/MySQL/LoginDatabase.h"
+#include "Implementation/MySQL/CharacterDatabase.h"
+#include "Implementation/MySQL/WorldDatabase.h"
+#include "Implementation/MySQL/HotfixDatabase.h"
+#endif
 
 #include "Field.h"
 #include "PreparedStatement.h"

@@ -28,7 +28,8 @@ if(USING_POSTGRESQL)
     ${CMAKE_CURRENT_SOURCE_DIR}/Database/MySQLPreparedStatement.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Database/MySQLThreading.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Database/MySQLThreading.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/Database/MySQLWorkaround.h)
+    ${CMAKE_CURRENT_SOURCE_DIR}/Database/MySQLWorkaround.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/Database/QueryResult.cpp)
 
   foreach(file ${MYSQL_FILES_TO_EXCLUDE})
     list(REMOVE_ITEM PRIVATE_SOURCES ${file})

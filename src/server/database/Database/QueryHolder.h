@@ -23,7 +23,13 @@
 #include <future>
 #include <vector>
 
+#ifdef WITH_POSTGRESQL
+class PostgreSQLConnection;
+using DatabaseConnection = PostgreSQLConnection;
+#else
 class MySQLConnection;
+using DatabaseConnection = MySQLConnection;
+#endif
 
 class TC_DATABASE_API SQLQueryHolderBase
 {
@@ -54,7 +60,7 @@ public:
 class TC_DATABASE_API SQLQueryHolderTask
 {
 public:
-    static bool Execute(MySQLConnection* conn, SQLQueryHolderBase* holder);
+    static bool Execute(DatabaseConnection* conn, SQLQueryHolderBase* holder);
 };
 
 class TC_DATABASE_API SQLQueryHolderCallback

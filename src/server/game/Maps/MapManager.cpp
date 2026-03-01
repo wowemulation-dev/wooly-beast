@@ -400,10 +400,10 @@ void MapManager::InitInstanceIds()
     _nextInstanceId = 1;
 
     uint64 maxExistingInstanceId = 0;
-    if (QueryResult result = CharacterDatabase.Query("SELECT IFNULL(MAX(instanceId), 0) FROM instance"))
+    if (QueryResult result = CharacterDatabase.Query("SELECT COALESCE(MAX(instanceId), 0) FROM instance"))
         maxExistingInstanceId = std::max(maxExistingInstanceId, (*result)[0].GetUInt64());
 
-    if (QueryResult result = CharacterDatabase.Query("SELECT IFNULL(MAX(instanceId), 0) FROM character_instance_lock"))
+    if (QueryResult result = CharacterDatabase.Query("SELECT COALESCE(MAX(instanceId), 0) FROM character_instance_lock"))
         maxExistingInstanceId = std::max(maxExistingInstanceId, (*result)[0].GetUInt64());
 
     _freeInstanceIds->resize(maxExistingInstanceId + 2, true); // make space for one extra to be able to access [_nextInstanceId] index in case all slots are taken

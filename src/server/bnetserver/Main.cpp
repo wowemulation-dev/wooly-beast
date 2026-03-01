@@ -36,7 +36,9 @@
 #include "Locales.h"
 #include "LoginRESTService.h"
 #include "Memory.h"
+#ifndef WITH_POSTGRESQL
 #include "MySQLThreading.h"
+#endif
 #include "OpenSSLCrypto.h"
 #include "ProcessPriority.h"
 #include "RealmList.h"
@@ -303,7 +305,9 @@ int main(int argc, char** argv)
 /// Initialize connection to the database
 bool StartDB()
 {
+#ifndef WITH_POSTGRESQL
     MySQL::Library_Init();
+#endif
 
     // Load databases
     DatabaseLoader loader("server.bnetserver", DatabaseLoader::DATABASE_NONE);
@@ -322,7 +326,9 @@ bool StartDB()
 void StopDB()
 {
     LoginDatabase.Close();
+#ifndef WITH_POSTGRESQL
     MySQL::Library_End();
+#endif
 }
 
 void SignalHandler(std::weak_ptr<Trinity::Asio::IoContext> ioContextRef, boost::system::error_code const& error, int /*signalNumber*/)
@@ -338,7 +344,11 @@ void KeepDatabaseAliveHandler(std::weak_ptr<Trinity::Asio::DeadlineTimer> dbPing
     {
         if (std::shared_ptr<Trinity::Asio::DeadlineTimer> dbPingTimer = dbPingTimerRef.lock())
         {
+#ifdef WITH_POSTGRESQL
+            TC_LOG_INFO("server.bnetserver", "Ping PostgreSQL to keep connection alive");
+#else
             TC_LOG_INFO("server.bnetserver", "Ping MySQL to keep connection alive");
+#endif
             LoginDatabase.KeepAlive();
 
             dbPingTimer->expires_after(std::chrono::minutes(dbPingInterval));

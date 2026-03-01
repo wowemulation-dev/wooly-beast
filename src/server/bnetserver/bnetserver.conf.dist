@@ -229,7 +229,7 @@ AllowLoggingIPAddressesInDatabase = 1
 ###################################################################################################
 
 ###################################################################################################
-# MYSQL SETTINGS
+# DATABASE SETTINGS
 #
 #    LoginDatabaseInfo
 #        Description: Database connection settings for the realm server.
@@ -239,7 +239,8 @@ AllowLoggingIPAddressesInDatabase = 1
 #                                                                 section my.ini)
 #                     ".;/path/to/unix_socket;username;password;database" - (use Unix sockets on
 #                                                                           Unix/Linux)
-#        Default:     "127.0.0.1;3306;trinity;trinity;auth"
+#        Default:     "127.0.0.1;3306;trinity;trinity;auth"     - (MySQL)
+#                     "127.0.0.1;5432;trinity;trinity;auth"     - (PostgreSQL, when built with -DWITH_POSTGRESQL=ON)
 #
 #    The SSL option will enable TLS when connecting to the specified database. If not provided or
 #    any value other than 'ssl' is set, TLS will not be used.

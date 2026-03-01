@@ -2440,7 +2440,11 @@ bool World::SetInitialWorldSettings()
     sWardenCheckMgr->LoadWardenOverrides();
 
     TC_LOG_INFO("server.loading", "Deleting expired bans...");
+#ifdef WITH_POSTGRESQL
+    LoginDatabase.Execute("DELETE FROM ip_banned WHERE unbandate <= EXTRACT(EPOCH FROM NOW())::BIGINT AND unbandate<>bandate");      // One-time query
+#else
     LoginDatabase.Execute("DELETE FROM ip_banned WHERE unbandate <= UNIX_TIMESTAMP() AND unbandate<>bandate");      // One-time query
+#endif
 
     TC_LOG_INFO("server.loading", "Initializing quest reset times...");
     InitQuestResetTimes();
@@ -3704,7 +3708,7 @@ void World::InitCurrencyResetTime()
 
 void World::ResetCurrencyWeekCap()
 {
-    CharacterDatabase.Execute("UPDATE `character_currency` SET `WeeklyQuantity` = 0");
+    CharacterDatabase.Execute("UPDATE " DB_QUOTE_IDENT("character_currency") " SET " DB_QUOTE_IDENT("WeeklyQuantity") " = 0");
 
     for (SessionMap::const_iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
         if (itr->second->GetPlayer())

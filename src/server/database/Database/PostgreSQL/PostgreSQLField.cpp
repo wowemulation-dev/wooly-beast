@@ -15,8 +15,4 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "DatabaseEnv.h"
-#include "Log.h"
-#ifndef WITH_POSTGRESQL
-#include "MySQLHacks.h"
-#endif
+#include "PostgreSQLField.h"

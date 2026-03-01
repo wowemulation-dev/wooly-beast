@@ -18,7 +18,11 @@
 #include "QueryHolder.h"
 #include "Errors.h"
 #include "Log.h"
+#ifdef WITH_POSTGRESQL
+#include "PostgreSQLConnection.h"
+#else
 #include "MySQLConnection.h"
+#endif
 #include "PreparedStatement.h"
 #include "QueryResult.h"
 
@@ -72,7 +76,7 @@ void SQLQueryHolderBase::SetSize(size_t size)
     m_queries.resize(size);
 }
 
-bool SQLQueryHolderTask::Execute(MySQLConnection* conn, SQLQueryHolderBase* holder)
+bool SQLQueryHolderTask::Execute(DatabaseConnection* conn, SQLQueryHolderBase* holder)
 {
     /// execute all queries in the holder and pass the results
     for (size_t i = 0; i < holder->m_queries.size(); ++i)

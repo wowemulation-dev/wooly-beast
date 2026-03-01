@@ -158,7 +158,7 @@ void LoadBuildInfo()
     }
 
     //                                                        0           1       2       3      4
-    if (QueryResult result = LoginDatabase.Query("SELECT `build`, `platform`, `arch`, `type`, `key` FROM `build_auth_key`"))
+    if (QueryResult result = LoginDatabase.Query("SELECT " DB_QUOTE_IDENT("build") ", " DB_QUOTE_IDENT("platform") ", " DB_QUOTE_IDENT("arch") ", " DB_QUOTE_IDENT("type") ", " DB_QUOTE_IDENT("key") " FROM " DB_QUOTE_IDENT("build_auth_key")))
     {
         do
         {

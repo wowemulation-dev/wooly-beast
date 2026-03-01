@@ -20,26 +20,28 @@
 #include "Common.h"
 #include "Errors.h"
 #include "IoContext.h"
-#include "Implementation/LoginDatabase.h"
-#include "Implementation/WorldDatabase.h"
-#include "Implementation/CharacterDatabase.h"
-#include "Implementation/HotfixDatabase.h"
+#include "DatabaseEnv.h"
 #include "Log.h"
+#ifdef WITH_POSTGRESQL
+#include "PostgreSQLPreparedStatement.h"
+#else
 #include "MySQLPreparedStatement.h"
+#include "MySQLWorkaround.h"
+#include <mysqld_error.h>
+#endif
 #include "PreparedStatement.h"
 #include "ProducerConsumerQueue.h"
 #include "QueryCallback.h"
 #include "QueryHolder.h"
 #include "QueryResult.h"
 #include "Transaction.h"
-#include "MySQLWorkaround.h"
 #include <boost/asio/use_future.hpp>
-#include <mysqld_error.h>
 #include <utility>
 #ifdef TRINITY_DEBUG
 #include <boost/stacktrace.hpp>
 #endif
 
+#ifndef WITH_POSTGRESQL
 #define MIN_MYSQL_SERVER_VERSION 50700u
 #define MIN_MYSQL_SERVER_VERSION_STRING "5.7"
 #define MIN_MYSQL_CLIENT_VERSION 50700u
@@ -49,6 +51,7 @@
 #define MIN_MARIADB_SERVER_VERSION_STRING "10.2.9"
 #define MIN_MARIADB_CLIENT_VERSION 30003u
 #define MIN_MARIADB_CLIENT_VERSION_STRING "3.0.3"
+#endif
 
 namespace
 {
@@ -112,6 +115,7 @@ template <class T>
 DatabaseWorkerPool<T>::DatabaseWorkerPool()
     : _async_threads(0), _synch_threads(0)
 {
+#ifndef WITH_POSTGRESQL
     WPFatal(mysql_thread_safe(), "Used MySQL library isn't thread-safe.");
 
 #if defined(LIBMARIADB) && MARIADB_PACKAGE_VERSION_ID >= 30200
@@ -121,6 +125,7 @@ DatabaseWorkerPool<T>::DatabaseWorkerPool()
     WPFatal(mysql_get_client_version() >= MIN_MYSQL_CLIENT_VERSION, "TrinityCore does not support MySQL versions below " MIN_MYSQL_CLIENT_VERSION_STRING " (found %s id %lu, need id >= %u), please update your MySQL client library", mysql_get_client_info(), mysql_get_client_version(), MIN_MYSQL_CLIENT_VERSION);
     WPFatal(mysql_get_client_version() == MYSQL_VERSION_ID, "Used MySQL library version (%s id %lu) does not match the version id used to compile TrinityCore (id %u). Search on forum for TCE00011.", mysql_get_client_info(), mysql_get_client_version(), MYSQL_VERSION_ID);
 #endif
+#endif // !WITH_POSTGRESQL
 }
 
 template <class T>
@@ -132,7 +137,7 @@ template <class T>
 void DatabaseWorkerPool<T>::SetConnectionInfo(std::string const& infoString,
     uint8 const asyncThreads, uint8 const synchThreads)
 {
-    _connectionInfo = std::make_unique<MySQLConnectionInfo>(infoString);
+    _connectionInfo = std::make_unique<DatabaseConnectionInfo>(infoString);
 
     _async_threads = asyncThreads;
     _synch_threads = synchThreads;
@@ -223,7 +228,11 @@ bool DatabaseWorkerPool<T>::PrepareStatements()
                 if (_preparedStatementSize[i] > 0)
                     continue;
 
-                if (MySQLPreparedStatement * stmt = connection->m_stmts[i].get())
+#ifdef WITH_POSTGRESQL
+                if (PostgreSQLPreparedStatement* stmt = connection->m_stmts[i].get())
+#else
+                if (MySQLPreparedStatement* stmt = connection->m_stmts[i].get())
+#endif
                 {
                     uint32 const paramCount = stmt->GetParameterCount();
 
@@ -369,6 +378,7 @@ void DatabaseWorkerPool<T>::DirectCommitTransaction(SQLTransaction<T>& transacti
         return;
     }
 
+#ifndef WITH_POSTGRESQL
     //! Handle MySQL Errno 1213 without extending deadlock to the core itself
     /// @todo More elegant way
     if (errorCode == ER_LOCK_DEADLOCK)
@@ -381,6 +391,7 @@ void DatabaseWorkerPool<T>::DirectCommitTransaction(SQLTransaction<T>& transacti
                 break;
         }
     }
+#endif
 
     //! Clean up now.
     transaction->Cleanup();
@@ -457,6 +468,7 @@ uint32 DatabaseWorkerPool<T>::OpenConnections(InternalIndex type, uint8 numConne
             _connections[type].clear();
             return error;
         }
+#ifndef WITH_POSTGRESQL
 #ifndef LIBMARIADB
         else if (connection->GetServerVersion() < MIN_MYSQL_SERVER_VERSION)
 #else
@@ -471,6 +483,7 @@ uint32 DatabaseWorkerPool<T>::OpenConnections(InternalIndex type, uint8 numConne
 
             return 1;
         }
+#endif // !WITH_POSTGRESQL
         else
         {
             _connections[type].push_back(std::move(connection));

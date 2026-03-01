@@ -15,8 +15,14 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "DatabaseEnv.h"
-#include "Log.h"
-#ifndef WITH_POSTGRESQL
-#include "MySQLHacks.h"
+#ifndef _DATABASE_CONNECTION_FLAGS_H
+#define _DATABASE_CONNECTION_FLAGS_H
+
+enum ConnectionFlags
+{
+    CONNECTION_ASYNC = 0x1,
+    CONNECTION_SYNCH = 0x2,
+    CONNECTION_BOTH = CONNECTION_ASYNC | CONNECTION_SYNCH
+};
+
 #endif

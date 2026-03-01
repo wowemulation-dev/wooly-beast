@@ -16,11 +16,15 @@
  */
 
 #include "AdhocStatement.h"
+#ifdef WITH_POSTGRESQL
+#include "PostgreSQLConnection.h"
+#else
 #include "MySQLConnection.h"
+#endif
 #include "QueryResult.h"
 
 /*! Basic, ad-hoc queries. */
-QueryResult BasicStatementTask::Query(MySQLConnection* conn, char const* sql)
+QueryResult BasicStatementTask::Query(DatabaseConnection* conn, char const* sql)
 {
     ResultSet* result = conn->Query(sql);
     if (!result || !result->GetRowCount() || !result->NextRow())
@@ -32,7 +36,7 @@ QueryResult BasicStatementTask::Query(MySQLConnection* conn, char const* sql)
     return QueryResult(result);
 }
 
-bool BasicStatementTask::Execute(MySQLConnection* conn, char const* sql)
+bool BasicStatementTask::Execute(DatabaseConnection* conn, char const* sql)
 {
     return conn->Execute(sql);
 }

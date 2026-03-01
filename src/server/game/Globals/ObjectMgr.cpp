@@ -351,7 +351,7 @@ void ObjectMgr::LoadCreatureTemplates()
     //                                        6         7         8                  9
     //                                       "TitleAlt, IconName, RequiredExpansion, VignetteID, "
     //                                        10       11       12          13         14      15     16         17              18               19            20
-    //                                       "faction, npcflag, speed_walk, speed_run, scale, `rank`, dmgschool, BaseAttackTime, RangeAttackTime, BaseVariance, RangeVariance, "
+    //                                       "faction, npcflag, speed_walk, speed_run, scale, " DB_QUOTE_IDENT("rank") ", dmgschool, BaseAttackTime, RangeAttackTime, BaseVariance, RangeVariance, "
     //                                        21          22          23           24
     //                                       "unit_class, unit_flags, unit_flags2, unit_flags3, "
     //                                        25      26             27    28              29         30      31
@@ -564,7 +564,7 @@ void ObjectMgr::LoadCreatureTemplateSpells()
     uint32 oldMSTime = getMSTime();
 
     //                                               0           1       2
-    QueryResult result = WorldDatabase.Query("SELECT CreatureID, `Index`, Spell FROM creature_template_spell");
+    QueryResult result = WorldDatabase.Query("SELECT CreatureID, " DB_QUOTE_IDENT("Index") ", Spell FROM creature_template_spell");
 
     if (!result)
     {
@@ -3202,7 +3202,7 @@ void ObjectMgr::LoadVehicleTemplateAccessories()
     uint32 count = 0;
 
     //                                                  0             1              2          3           4             5              6
-    QueryResult result = WorldDatabase.Query("SELECT `entry`, `accessory_entry`, `seat_id`, `minion`, `summontype`, `summontimer`, `RideSpellID` FROM `vehicle_template_accessory`");
+    QueryResult result = WorldDatabase.Query("SELECT " DB_QUOTE_IDENT("entry") ", " DB_QUOTE_IDENT("accessory_entry") ", " DB_QUOTE_IDENT("seat_id") ", " DB_QUOTE_IDENT("minion") ", " DB_QUOTE_IDENT("summontype") ", " DB_QUOTE_IDENT("summontimer") ", " DB_QUOTE_IDENT("RideSpellID") " FROM " DB_QUOTE_IDENT("vehicle_template_accessory"));
 
     if (!result)
     {
@@ -3327,7 +3327,7 @@ void ObjectMgr::LoadVehicleAccessories()
     uint32 count = 0;
 
     //                                                  0             1             2          3           4             5              6
-    QueryResult result = WorldDatabase.Query("SELECT `guid`, `accessory_entry`, `seat_id`, `minion`, `summontype`, `summontimer`, `RideSpellID` FROM `vehicle_accessory`");
+    QueryResult result = WorldDatabase.Query("SELECT " DB_QUOTE_IDENT("guid") ", " DB_QUOTE_IDENT("accessory_entry") ", " DB_QUOTE_IDENT("seat_id") ", " DB_QUOTE_IDENT("minion") ", " DB_QUOTE_IDENT("summontype") ", " DB_QUOTE_IDENT("summontimer") ", " DB_QUOTE_IDENT("RideSpellID") " FROM " DB_QUOTE_IDENT("vehicle_accessory"));
 
     if (!result)
     {
@@ -3382,7 +3382,7 @@ void ObjectMgr::LoadVehicleSeatAddon()
     uint32 count = 0;
 
     //                                                0            1                  2             3             4             5             6
-    QueryResult result = WorldDatabase.Query("SELECT `SeatEntry`, `SeatOrientation`, `ExitParamX`, `ExitParamY`, `ExitParamZ`, `ExitParamO`, `ExitParamValue` FROM `vehicle_seat_addon`");
+    QueryResult result = WorldDatabase.Query("SELECT " DB_QUOTE_IDENT("SeatEntry") ", " DB_QUOTE_IDENT("SeatOrientation") ", " DB_QUOTE_IDENT("ExitParamX") ", " DB_QUOTE_IDENT("ExitParamY") ", " DB_QUOTE_IDENT("ExitParamZ") ", " DB_QUOTE_IDENT("ExitParamO") ", " DB_QUOTE_IDENT("ExitParamValue") " FROM " DB_QUOTE_IDENT("vehicle_seat_addon"));
 
     if (!result)
     {
@@ -4426,7 +4426,7 @@ void ObjectMgr::LoadQuests()
         // 0           1      2        3                4            5          6         7          8                     9
         { "qo.QuestID, qo.ID, qo.Type, qo.StorageIndex, qo.ObjectID, qo.Amount, qo.Flags, qo.Flags2, qo.ProgressBarWeight, qo.Description, "
         //   10                11            12                   13                     14
-            "qoce.GameEventID, qoce.SpellID, qoce.ConversationID, qoce.UpdatePhaseShift, qoce.UpdateZoneAuras",                                                           "quest_objectives qo",  "LEFT JOIN quest_objectives_completion_effect qoce ON qo.ID = qoce.ObjectiveID ORDER BY `Order` ASC, StorageIndex ASC", "quest objectives",    &Quest::LoadQuestObjective     },
+            "qoce.GameEventID, qoce.SpellID, qoce.ConversationID, qoce.UpdatePhaseShift, qoce.UpdateZoneAuras",                                                           "quest_objectives qo",  "LEFT JOIN quest_objectives_completion_effect qoce ON qo.ID = qoce.ObjectiveID ORDER BY " DB_QUOTE_IDENT("Order") " ASC, StorageIndex ASC", "quest objectives",    &Quest::LoadQuestObjective     },
 
         // 0        1                  2                     3       4
         { "QuestId, PlayerConditionId, QuestgiverCreatureId, Text, locale",                                                                                               "quest_description_conditional", "ORDER BY OrderIndex",           "conditional details", &Quest::LoadConditionalConditionalQuestDescription },
@@ -5921,7 +5921,7 @@ void ObjectMgr::LoadPageTexts()
     uint32 oldMSTime = getMSTime();
 
     //                                               0    1     2           3                  4
-    QueryResult result = WorldDatabase.Query("SELECT ID, `Text`, NextPageID, PlayerConditionID, Flags FROM page_text");
+    QueryResult result = WorldDatabase.Query("SELECT ID, " DB_QUOTE_IDENT("Text") ", NextPageID, PlayerConditionID, Flags FROM page_text");
     if (!result)
     {
         TC_LOG_INFO("server.loading", ">> Loaded 0 page texts. DB table `page_text` is empty!");
@@ -5969,7 +5969,7 @@ void ObjectMgr::LoadPageTextLocales()
     _pageTextLocaleStore.clear(); // needed for reload case
 
     //                                               0      1      2
-    QueryResult result = WorldDatabase.Query("SELECT ID, locale, `Text` FROM page_text_locale");
+    QueryResult result = WorldDatabase.Query("SELECT ID, locale, " DB_QUOTE_IDENT("Text") " FROM page_text_locale");
     if (!result)
         return;
 
@@ -7161,8 +7161,16 @@ void ObjectMgr::SetHighestGuids()
     // Cleanup other tables from nonexistent guids ( >= _hiItemGuid)
     CharacterDatabase.PExecute("DELETE FROM character_inventory WHERE item >= '{}'", GetGenerator<HighGuid::Item>().GetNextAfterMaxUsed());     // One-time query
     CharacterDatabase.PExecute("DELETE FROM mail_items WHERE item_guid >= '{}'", GetGenerator<HighGuid::Item>().GetNextAfterMaxUsed());         // One-time query
+#ifdef WITH_POSTGRESQL
+    CharacterDatabase.PExecute("WITH target AS (SELECT a.id FROM auctionhouse a LEFT JOIN auction_items ai ON ai.auctionId = a.id WHERE ai.itemGuid >= '{}'), "
+        "del_ab AS (DELETE FROM auction_bidders WHERE auctionId IN (SELECT id FROM target)), "
+        "del_ai AS (DELETE FROM auction_items WHERE auctionId IN (SELECT id FROM target)) "
+        "DELETE FROM auctionhouse WHERE id IN (SELECT id FROM target)",
+        GetGenerator<HighGuid::Item>().GetNextAfterMaxUsed());                                                                                  // One-time query
+#else
     CharacterDatabase.PExecute("DELETE a, ab, ai FROM auctionhouse a LEFT JOIN auction_bidders ab ON ab.auctionId = a.id LEFT JOIN auction_items ai ON ai.auctionId = a.id WHERE ai.itemGuid >= '{}'",
         GetGenerator<HighGuid::Item>().GetNextAfterMaxUsed());                                                                                  // One-time query
+#endif
     CharacterDatabase.PExecute("DELETE FROM guild_bank_item WHERE item_guid >= '{}'", GetGenerator<HighGuid::Item>().GetNextAfterMaxUsed());    // One-time query
 
     result = WorldDatabase.Query("SELECT MAX(guid) FROM transports");
@@ -7189,7 +7197,7 @@ void ObjectMgr::SetHighestGuids()
     if (result)
         sGuildMgr->SetNextGuildId((*result)[0].GetUInt64()+1);
 
-    result = CharacterDatabase.Query("SELECT MAX(guid) FROM `groups`");
+    result = CharacterDatabase.Query("SELECT MAX(guid) FROM " DB_QUOTE_IDENT("groups"));
     if (result)
         sGroupMgr->SetGroupDbStoreSize((*result)[0].GetUInt32()+1);
 
@@ -10174,7 +10182,7 @@ void ObjectMgr::LoadTerrainWorldMaps()
     uint32 oldMSTime = getMSTime();
 
     //                                               0               1
-    QueryResult result = WorldDatabase.Query("SELECT TerrainSwapMap, UiMapPhaseId FROM `terrain_worldmap`");
+    QueryResult result = WorldDatabase.Query("SELECT TerrainSwapMap, UiMapPhaseId FROM " DB_QUOTE_IDENT("terrain_worldmap"));
 
     if (!result)
     {
@@ -10217,7 +10225,7 @@ void ObjectMgr::LoadTerrainSwapDefaults()
     uint32 oldMSTime = getMSTime();
 
     //                                               0       1
-    QueryResult result = WorldDatabase.Query("SELECT MapId, TerrainSwapMap FROM `terrain_swap_defaults`");
+    QueryResult result = WorldDatabase.Query("SELECT MapId, TerrainSwapMap FROM " DB_QUOTE_IDENT("terrain_swap_defaults"));
 
     if (!result)
     {
@@ -10261,7 +10269,7 @@ void ObjectMgr::LoadAreaPhases()
     uint32 oldMSTime = getMSTime();
 
     //                                               0       1
-    QueryResult result = WorldDatabase.Query("SELECT AreaId, PhaseId FROM `phase_area`");
+    QueryResult result = WorldDatabase.Query("SELECT AreaId, PhaseId FROM " DB_QUOTE_IDENT("phase_area"));
 
     if (!result)
     {
@@ -10422,7 +10430,7 @@ void ObjectMgr::LoadRaceAndClassExpansionRequirements()
     _raceUnlockRequirementStore.clear();
 
     //                                               0       1          2
-    QueryResult result = WorldDatabase.Query("SELECT raceID, expansion, achievementId FROM `race_unlock_requirement`");
+    QueryResult result = WorldDatabase.Query("SELECT raceID, expansion, achievementId FROM " DB_QUOTE_IDENT("race_unlock_requirement"));
 
     if (result)
     {
@@ -10467,7 +10475,7 @@ void ObjectMgr::LoadRaceAndClassExpansionRequirements()
     _classExpansionRequirementStore.clear();
 
     //                                         0       1                     2                      3
-    result = WorldDatabase.Query("SELECT ClassID, RaceID, ActiveExpansionLevel, AccountExpansionLevel FROM `class_expansion_requirement`");
+    result = WorldDatabase.Query("SELECT ClassID, RaceID, ActiveExpansionLevel, AccountExpansionLevel FROM " DB_QUOTE_IDENT("class_expansion_requirement"));
 
     if (result)
     {
@@ -10916,7 +10924,7 @@ void ObjectMgr::LoadPlayerChoices()
     if (QueryResult responses = WorldDatabase.Query("SELECT ChoiceId, ResponseId, ResponseIdentifier, ChoiceArtFileId, Flags, WidgetSetID, "
     //                         6           7        8               9      10      11         12              13           14            15             16
         "UiTextureAtlasElementID, SoundKitID, GroupID, UiTextureKitID, Answer, Header, SubHeader, ButtonTooltip, Description, Confirmation, RewardQuestID "
-        "FROM playerchoice_response ORDER BY `Index` ASC"))
+        "FROM playerchoice_response ORDER BY " DB_QUOTE_IDENT("Index") " ASC"))
     {
         do
         {
@@ -11018,7 +11026,7 @@ void ObjectMgr::LoadPlayerChoices()
         } while (rewards->NextRow());
     }
 
-    if (QueryResult rewards = WorldDatabase.Query("SELECT ChoiceId, ResponseId, ItemId, BonusListIDs, Quantity FROM playerchoice_response_reward_item ORDER BY `Index` ASC"))
+    if (QueryResult rewards = WorldDatabase.Query("SELECT ChoiceId, ResponseId, ItemId, BonusListIDs, Quantity FROM playerchoice_response_reward_item ORDER BY " DB_QUOTE_IDENT("Index") " ASC"))
     {
         do
         {
@@ -11068,7 +11076,7 @@ void ObjectMgr::LoadPlayerChoices()
         } while (rewards->NextRow());
     }
 
-    if (QueryResult rewards = WorldDatabase.Query("SELECT ChoiceId, ResponseId, CurrencyId, Quantity FROM playerchoice_response_reward_currency ORDER BY `Index` ASC"))
+    if (QueryResult rewards = WorldDatabase.Query("SELECT ChoiceId, ResponseId, CurrencyId, Quantity FROM playerchoice_response_reward_currency ORDER BY " DB_QUOTE_IDENT("Index") " ASC"))
     {
         do
         {
@@ -11114,7 +11122,7 @@ void ObjectMgr::LoadPlayerChoices()
         } while (rewards->NextRow());
     }
 
-    if (QueryResult rewards = WorldDatabase.Query("SELECT ChoiceId, ResponseId, FactionId, Quantity FROM playerchoice_response_reward_faction ORDER BY `Index` ASC"))
+    if (QueryResult rewards = WorldDatabase.Query("SELECT ChoiceId, ResponseId, FactionId, Quantity FROM playerchoice_response_reward_faction ORDER BY " DB_QUOTE_IDENT("Index") " ASC"))
     {
         do
         {
@@ -11160,7 +11168,7 @@ void ObjectMgr::LoadPlayerChoices()
         } while (rewards->NextRow());
     }
 
-    if (QueryResult rewards = WorldDatabase.Query("SELECT ChoiceId, ResponseId, ItemId, BonusListIDs, Quantity FROM playerchoice_response_reward_item_choice ORDER BY `Index` ASC"))
+    if (QueryResult rewards = WorldDatabase.Query("SELECT ChoiceId, ResponseId, ItemId, BonusListIDs, Quantity FROM playerchoice_response_reward_item_choice ORDER BY " DB_QUOTE_IDENT("Index") " ASC"))
     {
         do
         {
@@ -11422,7 +11430,7 @@ void ObjectMgr::LoadPhaseNames()
     _phaseNameStore.clear();
 
     //                                                0     1
-    QueryResult result = WorldDatabase.Query("SELECT `ID`, `Name` FROM `phase_name`");
+    QueryResult result = WorldDatabase.Query("SELECT " DB_QUOTE_IDENT("ID") ", " DB_QUOTE_IDENT("Name") " FROM " DB_QUOTE_IDENT("phase_name"));
 
     if (!result)
     {

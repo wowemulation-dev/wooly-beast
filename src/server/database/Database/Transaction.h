@@ -27,7 +27,13 @@
 #include <variant>
 #include <vector>
 
+#ifdef WITH_POSTGRESQL
+class PostgreSQLConnection;
+using DatabaseConnection = PostgreSQLConnection;
+#else
 class MySQLConnection;
+using DatabaseConnection = MySQLConnection;
+#endif
 
 struct TransactionData
 {
@@ -49,7 +55,11 @@ struct TransactionData
 class TC_DATABASE_API TransactionBase
 {
     friend class TransactionTask;
+#ifdef WITH_POSTGRESQL
+    friend class PostgreSQLConnection;
+#else
     friend class MySQLConnection;
+#endif
 
     template <typename T>
     friend class DatabaseWorkerPool;
@@ -95,10 +105,10 @@ public:
 class TC_DATABASE_API TransactionTask
 {
 public:
-    static bool Execute(MySQLConnection* conn, std::shared_ptr<TransactionBase> trans);
+    static bool Execute(DatabaseConnection* conn, std::shared_ptr<TransactionBase> trans);
 
 private:
-    static int TryExecute(MySQLConnection* conn, std::shared_ptr<TransactionBase> trans);
+    static int TryExecute(DatabaseConnection* conn, std::shared_ptr<TransactionBase> trans);
 
     static std::mutex _deadlockLock;
 };

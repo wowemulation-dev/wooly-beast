@@ -15,8 +15,15 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "DatabaseEnv.h"
-#include "Log.h"
-#ifndef WITH_POSTGRESQL
-#include "MySQLHacks.h"
+#ifndef _POSTGRESQLFIELD_H
+#define _POSTGRESQLFIELD_H
+
+#include "Field.h"
+
+// PostgreSQL field value extraction uses the base Field class.
+// Values are set by ResultSet/PreparedResultSet which populate Field
+// via SetValue() / SetMetadata() (friend access).
+// All PostgreSQL data is returned in text format and converted via
+// FromStringToDatabaseTypeConverter through the FieldValueConverter system.
+
 #endif

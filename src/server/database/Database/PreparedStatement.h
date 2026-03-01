@@ -26,7 +26,13 @@
 #include <variant>
 #include <vector>
 
+#ifdef WITH_POSTGRESQL
+class PostgreSQLConnection;
+using DatabaseConnection = PostgreSQLConnection;
+#else
 class MySQLConnection;
+using DatabaseConnection = MySQLConnection;
+#endif
 
 struct PreparedStatementData
 {
@@ -117,8 +123,8 @@ private:
 class TC_DATABASE_API PreparedStatementTask
 {
 public:
-    static PreparedQueryResult Query(MySQLConnection* conn, PreparedStatementBase* stmt);
-    static bool Execute(MySQLConnection* conn, PreparedStatementBase* stmt);
+    static PreparedQueryResult Query(DatabaseConnection* conn, PreparedStatementBase* stmt);
+    static bool Execute(DatabaseConnection* conn, PreparedStatementBase* stmt);
 };
 
 #endif

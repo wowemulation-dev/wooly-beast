@@ -15,47 +15,21 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef QUERYRESULT_H
-#define QUERYRESULT_H
+#ifndef _POSTGRESQL_RESULTSET_H
+#define _POSTGRESQL_RESULTSET_H
 
-#include "Define.h"
 #include "DatabaseEnvFwd.h"
-#include "Hash.h"
-#include <unordered_map>
+#include "Field.h"
+#include "QueryResult.h"
 #include <vector>
 
-namespace Trinity::DB
-{
-struct FieldLookupByAliasKey
-{
-    std::size_t HashValue;      ///< Cached hash value (first field to make opeartor== return early, minimizing number of string comparisons)
-    std::string_view Alias;
-
-    // implicit constructor from string literal for users of the query result
-    consteval FieldLookupByAliasKey(char const* alias) : HashValue(HashFnv1a(alias)), Alias(alias) { }
-
-    // runtime only constructor used internally to fill alias to index mapping
-    struct RuntimeInitTag { } static inline constexpr RuntimeInit = { };
-    FieldLookupByAliasKey(RuntimeInitTag, std::string_view alias) : HashValue(HashFnv1a(alias)), Alias(std::move(alias)) { }
-
-    friend bool operator==(FieldLookupByAliasKey const& left, FieldLookupByAliasKey const& right) = default;
-
-    struct Hash { constexpr std::size_t operator()(FieldLookupByAliasKey const& k) const { return k.HashValue; } };
-};
-
-using FieldAliasToIndexMap = std::unordered_map<FieldLookupByAliasKey, std::size_t, FieldLookupByAliasKey::Hash>;
-}
-
-#ifdef WITH_POSTGRESQL
-// PostgreSQL ResultSet/PreparedResultSet are defined in PostgreSQLResultSet.h
-// and included via that header. The class declarations below are for MySQL only.
-#include "PostgreSQLResultSet.h"
-#else
+struct pg_result;
+typedef struct pg_result PGresult;
 
 class TC_DATABASE_API ResultSet
 {
     public:
-        ResultSet(MySQLResult* result, MySQLField* fields, uint64 rowCount, uint32 fieldCount);
+        ResultSet(PGresult* result, uint64 rowCount, uint32 fieldCount);
         ~ResultSet();
 
         bool NextRow();
@@ -78,8 +52,17 @@ class TC_DATABASE_API ResultSet
 
     private:
         void CleanUp();
-        MySQLResult* _result;
-        MySQLField* _fields;
+
+        PGresult* _result;
+        int _currentRowIndex;
+
+        // Storage for column name strings (PGresult owns the originals,
+        // but we need persistent copies for metadata pointers)
+        std::vector<std::string> _columnNames;
+        // Storage for decoded bytea values
+        std::vector<std::vector<uint8>> _byteaBuffers;
+        // Column OIDs for type detection
+        std::vector<unsigned int> _fieldOids;
 
         ResultSet(ResultSet const& right) = delete;
         ResultSet& operator=(ResultSet const& right) = delete;
@@ -88,7 +71,7 @@ class TC_DATABASE_API ResultSet
 class TC_DATABASE_API PreparedResultSet
 {
     public:
-        PreparedResultSet(MySQLStmt* stmt, MySQLResult* result, uint64 rowCount, uint32 fieldCount);
+        PreparedResultSet(PGresult* result, uint64 rowCount, uint32 fieldCount);
         ~PreparedResultSet();
 
         bool NextRow();
@@ -111,17 +94,19 @@ class TC_DATABASE_API PreparedResultSet
         uint32 m_fieldCount;
 
     private:
-        MySQLBind* m_rBind;
-        MySQLStmt* m_stmt;
-        MySQLResult* m_metadataResult;    ///< Field metadata, returned by mysql_stmt_result_metadata
-
         void CleanUp();
-        bool _NextRow();
+
+        PGresult* m_result;
+
+        // Storage for column name strings
+        std::vector<std::string> m_columnNames;
+        // Storage for decoded bytea values (per-row x per-column)
+        std::vector<std::vector<uint8>> m_byteaBuffers;
+        // Column OIDs for type detection
+        std::vector<unsigned int> m_fieldOids;
 
         PreparedResultSet(PreparedResultSet const& right) = delete;
         PreparedResultSet& operator=(PreparedResultSet const& right) = delete;
 };
 
-#endif // !WITH_POSTGRESQL
-
-#endif // QUERYRESULT_H
+#endif

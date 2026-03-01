@@ -97,7 +97,11 @@ UpdateFetcher::DirectoryStorage UpdateFetcher::ReceiveIncludedDirectories() cons
 {
     DirectoryStorage directories;
 
+#ifdef WITH_POSTGRESQL
+    QueryResult const result = _retrieve("SELECT path, state FROM updates_include");
+#else
     QueryResult const result = _retrieve("SELECT `path`, `state` FROM `updates_include`");
+#endif
     if (!result)
         return directories;
 
@@ -131,7 +135,11 @@ UpdateFetcher::AppliedFileStorage UpdateFetcher::ReceiveAppliedFiles() const
 {
     AppliedFileStorage map;
 
+#ifdef WITH_POSTGRESQL
+    QueryResult result = _retrieve("SELECT name, hash, state, EXTRACT(EPOCH FROM timestamp)::bigint AS timestamp FROM updates ORDER BY name ASC");
+#else
     QueryResult result = _retrieve("SELECT `name`, `hash`, `state`, UNIX_TIMESTAMP(`timestamp`) FROM `updates` ORDER BY `name` ASC");
+#endif
     if (!result)
         return map;
 
@@ -361,8 +369,14 @@ uint32 UpdateFetcher::Apply(Path const& path) const
 
 void UpdateFetcher::UpdateEntry(AppliedFileEntry const& entry, uint32 const speed) const
 {
+#ifdef WITH_POSTGRESQL
+    std::string const update = "INSERT INTO updates (name, hash, state, speed) VALUES ('" +
+        entry.name + "', '" + entry.hash + "', '" + entry.GetStateAsString() + "', " + std::to_string(speed) +
+        ") ON CONFLICT (name) DO UPDATE SET hash = EXCLUDED.hash, state = EXCLUDED.state, speed = EXCLUDED.speed";
+#else
     std::string const update = "REPLACE INTO `updates` (`name`, `hash`, `state`, `speed`) VALUES (\"" +
         entry.name + "\", \"" + entry.hash + "\", \'" + entry.GetStateAsString() + "\', " + std::to_string(speed) + ")";
+#endif
 
     // Update database
     _apply(update);
@@ -372,7 +386,11 @@ void UpdateFetcher::RenameEntry(std::string const& from, std::string const& to) 
 {
     // Delete the target if it exists
     {
+#ifdef WITH_POSTGRESQL
+        std::string const update = "DELETE FROM updates WHERE name='" + to + "'";
+#else
         std::string const update = "DELETE FROM `updates` WHERE `name`=\"" + to + "\"";
+#endif
 
         // Update database
         _apply(update);
@@ -380,7 +398,11 @@ void UpdateFetcher::RenameEntry(std::string const& from, std::string const& to) 
 
     // Rename
     {
+#ifdef WITH_POSTGRESQL
+        std::string const update = "UPDATE updates SET name='" + to + "' WHERE name='" + from + "'";
+#else
         std::string const update = "UPDATE `updates` SET `name`=\"" + to + "\" WHERE `name`=\"" + from + "\"";
+#endif
 
         // Update database
         _apply(update);
@@ -395,11 +417,19 @@ void UpdateFetcher::CleanUp(AppliedFileStorage const& storage) const
     std::stringstream update;
     size_t remaining = storage.size();
 
+#ifdef WITH_POSTGRESQL
+    update << "DELETE FROM updates WHERE name IN(";
+#else
     update << "DELETE FROM `updates` WHERE `name` IN(";
+#endif
 
     for (auto const& entry : storage)
     {
+#ifdef WITH_POSTGRESQL
+        update << "'" << entry.first << "'";
+#else
         update << "\"" << entry.first << "\"";
+#endif
         if ((--remaining) > 0)
             update << ", ";
     }
@@ -412,7 +442,11 @@ void UpdateFetcher::CleanUp(AppliedFileStorage const& storage) const
 
 void UpdateFetcher::UpdateState(std::string const& name, State const state) const
 {
+#ifdef WITH_POSTGRESQL
+    std::string const update = "UPDATE updates SET state='" + AppliedFileEntry::StateConvert(state) + "' WHERE name='" + name + "'";
+#else
     std::string const update = Trinity::StringFormat(R"(UPDATE `updates` SET `state`='{}' WHERE `name`="{}")", AppliedFileEntry::StateConvert(state), name);
+#endif
 
     // Update database
     _apply(update);

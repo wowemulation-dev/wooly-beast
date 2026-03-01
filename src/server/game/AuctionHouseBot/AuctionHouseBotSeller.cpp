@@ -75,17 +75,17 @@ bool AuctionBotSeller::Initialize()
 
     TC_LOG_DEBUG("ahbot", "Loading loot items for filter..");
     QueryResult result = WorldDatabase.PQuery(
-        "SELECT `item` FROM `creature_loot_template` WHERE `ItemType` = 0 UNION "
-        "SELECT `item` FROM `disenchant_loot_template` WHERE `ItemType` = 0 UNION "
-        "SELECT `item` FROM `fishing_loot_template` WHERE `ItemType` = 0 UNION "
-        "SELECT `item` FROM `gameobject_loot_template` WHERE `ItemType` = 0 UNION "
-        "SELECT `item` FROM `item_loot_template` WHERE `ItemType` = 0 UNION "
-        "SELECT `item` FROM `milling_loot_template` WHERE `ItemType` = 0 UNION "
-        "SELECT `item` FROM `pickpocketing_loot_template` WHERE `ItemType` = 0 UNION "
-        "SELECT `item` FROM `prospecting_loot_template` WHERE `ItemType` = 0 UNION "
-        "SELECT `item` FROM `reference_loot_template` WHERE `ItemType` = 0 UNION "
-        "SELECT `item` FROM `skinning_loot_template` WHERE `ItemType` = 0 UNION "
-        "SELECT `item` FROM `spell_loot_template` WHERE `ItemType` = 0");
+        "SELECT " DB_QUOTE_IDENT("item") " FROM " DB_QUOTE_IDENT("creature_loot_template") " WHERE " DB_QUOTE_IDENT("ItemType") " = 0 UNION "
+        "SELECT " DB_QUOTE_IDENT("item") " FROM " DB_QUOTE_IDENT("disenchant_loot_template") " WHERE " DB_QUOTE_IDENT("ItemType") " = 0 UNION "
+        "SELECT " DB_QUOTE_IDENT("item") " FROM " DB_QUOTE_IDENT("fishing_loot_template") " WHERE " DB_QUOTE_IDENT("ItemType") " = 0 UNION "
+        "SELECT " DB_QUOTE_IDENT("item") " FROM " DB_QUOTE_IDENT("gameobject_loot_template") " WHERE " DB_QUOTE_IDENT("ItemType") " = 0 UNION "
+        "SELECT " DB_QUOTE_IDENT("item") " FROM " DB_QUOTE_IDENT("item_loot_template") " WHERE " DB_QUOTE_IDENT("ItemType") " = 0 UNION "
+        "SELECT " DB_QUOTE_IDENT("item") " FROM " DB_QUOTE_IDENT("milling_loot_template") " WHERE " DB_QUOTE_IDENT("ItemType") " = 0 UNION "
+        "SELECT " DB_QUOTE_IDENT("item") " FROM " DB_QUOTE_IDENT("pickpocketing_loot_template") " WHERE " DB_QUOTE_IDENT("ItemType") " = 0 UNION "
+        "SELECT " DB_QUOTE_IDENT("item") " FROM " DB_QUOTE_IDENT("prospecting_loot_template") " WHERE " DB_QUOTE_IDENT("ItemType") " = 0 UNION "
+        "SELECT " DB_QUOTE_IDENT("item") " FROM " DB_QUOTE_IDENT("reference_loot_template") " WHERE " DB_QUOTE_IDENT("ItemType") " = 0 UNION "
+        "SELECT " DB_QUOTE_IDENT("item") " FROM " DB_QUOTE_IDENT("skinning_loot_template") " WHERE " DB_QUOTE_IDENT("ItemType") " = 0 UNION "
+        "SELECT " DB_QUOTE_IDENT("item") " FROM " DB_QUOTE_IDENT("spell_loot_template") " WHERE " DB_QUOTE_IDENT("ItemType") " = 0");
 
     if (result)
     {

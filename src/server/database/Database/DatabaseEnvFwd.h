@@ -78,11 +78,17 @@ using WorldDatabaseQueryHolder = SQLQueryHolder<WorldDatabaseConnection>;
 
 class SQLQueryHolderCallback;
 
-// mysql
+#ifdef WITH_POSTGRESQL
+struct PostgreSQLConnectionInfo;
+using DatabaseConnectionInfo = PostgreSQLConnectionInfo;
+#else
 struct MySQLHandle;
 struct MySQLResult;
 struct MySQLField;
 struct MySQLBind;
 struct MySQLStmt;
+struct MySQLConnectionInfo;
+using DatabaseConnectionInfo = MySQLConnectionInfo;
+#endif
 
 #endif // DatabaseEnvFwd_h__

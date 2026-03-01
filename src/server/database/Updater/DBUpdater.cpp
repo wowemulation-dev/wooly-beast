@@ -24,21 +24,34 @@
 #include "Log.h"
 #include "QueryResult.h"
 #include "StartProcess.h"
+#include "StringFormat.h"
 #include "UpdateFetcher.h"
+#ifdef WITH_POSTGRESQL
+#include <libpq-fe.h>
+#endif
 #include <boost/filesystem/operations.hpp>
 #include <fstream>
 #include <iostream>
+#include <sstream>
 
 std::string DBUpdaterUtil::GetCorrectedMySQLExecutable()
 {
+#ifdef WITH_POSTGRESQL
+    return "";
+#else
     if (!corrected_path().empty())
         return corrected_path();
     else
         return BuiltInConfig::GetMySQLExecutable();
+#endif
 }
 
 bool DBUpdaterUtil::CheckExecutable()
 {
+#ifdef WITH_POSTGRESQL
+    // PostgreSQL updates are handled through libpq directly
+    return true;
+#else
     boost::filesystem::path exe(GetCorrectedMySQLExecutable());
     if (!is_regular_file(exe))
     {
@@ -56,6 +69,7 @@ bool DBUpdaterUtil::CheckExecutable()
         return false;
     }
     return true;
+#endif
 }
 
 std::string& DBUpdaterUtil::corrected_path()
@@ -202,6 +216,44 @@ bool DBUpdater<T>::Create(DatabaseWorkerPool<T>& pool)
 
     TC_LOG_INFO("sql.updates", "Creating database \"{}\"...", pool.GetConnectionInfo()->database);
 
+#ifdef WITH_POSTGRESQL
+    // Build connection string to connect to 'postgres' database
+    std::stringstream connStr;
+    connStr << "host=" << pool.GetConnectionInfo()->host
+            << " port=" << pool.GetConnectionInfo()->port_or_socket
+            << " dbname=postgres"
+            << " user=" << pool.GetConnectionInfo()->user
+            << " password=" << pool.GetConnectionInfo()->password
+            << " connect_timeout=10"
+            << " client_encoding=UTF8";
+
+    PGconn* conn = PQconnectdb(connStr.str().c_str());
+
+    if (PQstatus(conn) != CONNECTION_OK)
+    {
+        TC_LOG_FATAL("sql.updates", "Failed to connect to PostgreSQL server to create database: {}",
+            PQerrorMessage(conn));
+        PQfinish(conn);
+        return false;
+    }
+
+    std::string createQuery = Trinity::StringFormat("CREATE DATABASE \"{}\" ENCODING 'UTF8'",
+        pool.GetConnectionInfo()->database);
+
+    PGresult* result = PQexec(conn, createQuery.c_str());
+
+    if (PQresultStatus(result) != PGRES_COMMAND_OK)
+    {
+        TC_LOG_FATAL("sql.updates", "Failed to create database {}: {}",
+            pool.GetConnectionInfo()->database, PQerrorMessage(conn));
+        PQclear(result);
+        PQfinish(conn);
+        return false;
+    }
+
+    PQclear(result);
+    PQfinish(conn);
+#else
     // Path of temp file
     static Path const temp("create_table.sql");
 
@@ -229,8 +281,10 @@ bool DBUpdater<T>::Create(DatabaseWorkerPool<T>& pool)
         return false;
     }
 
-    TC_LOG_INFO("sql.updates", "Done.");
     boost::filesystem::remove(temp);
+#endif
+
+    TC_LOG_INFO("sql.updates", "Done.");
     return true;
 }
 
@@ -283,7 +337,11 @@ template<class T>
 bool DBUpdater<T>::Populate(DatabaseWorkerPool<T>& pool)
 {
     {
+#ifdef WITH_POSTGRESQL
+        QueryResult const result = Retrieve(pool, "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'");
+#else
         QueryResult const result = Retrieve(pool, "SHOW TABLES");
+#endif
         if (result && (result->GetRowCount() > 0))
             return true;
     }
@@ -363,6 +421,60 @@ void DBUpdater<T>::ApplyFile(DatabaseWorkerPool<T>& pool, std::string const& hos
     std::string const& password, std::string const& port_or_socket, std::string const& database, std::string const& ssl,
     Path const& path)
 {
+#ifdef WITH_POSTGRESQL
+    TC_LOG_INFO("sql.updates", "Applying update \"{}\" to database \"{}\"...", path.filename().generic_string(), database);
+
+    // Read the SQL file
+    std::ifstream sqlFile(path.generic_string());
+    if (!sqlFile.is_open())
+    {
+        TC_LOG_ERROR("sql.updates", "Failed to open SQL file: {}", path.generic_string());
+        throw UpdateException("Failed to open SQL file");
+    }
+
+    std::stringstream buffer;
+    buffer << sqlFile.rdbuf();
+    std::string sql = buffer.str();
+    sqlFile.close();
+
+    // Build connection string
+    std::stringstream connStr;
+    connStr << "host=" << host
+            << " port=" << port_or_socket
+            << " user=" << user
+            << " password=" << password
+            << " client_encoding=UTF8";
+
+    if (!database.empty())
+        connStr << " dbname=" << database;
+
+    if (ssl == "ssl")
+        connStr << " sslmode=require";
+
+    PGconn* conn = PQconnectdb(connStr.str().c_str());
+
+    if (PQstatus(conn) != CONNECTION_OK)
+    {
+        TC_LOG_FATAL("sql.updates", "Failed to connect to PostgreSQL for applying file: {}", PQerrorMessage(conn));
+        PQfinish(conn);
+        throw UpdateException("update failed");
+    }
+
+    PGresult* result = PQexec(conn, sql.c_str());
+    ExecStatusType status = PQresultStatus(result);
+
+    if (status != PGRES_COMMAND_OK && status != PGRES_TUPLES_OK)
+    {
+        TC_LOG_FATAL("sql.updates", "Applying of file '{}' to database '{}' failed: {}",
+            path.generic_string(), database, PQerrorMessage(conn));
+        PQclear(result);
+        PQfinish(conn);
+        throw UpdateException("update failed");
+    }
+
+    PQclear(result);
+    PQfinish(conn);
+#else
     std::vector<std::string> args;
     args.reserve(9);
 
@@ -437,6 +549,7 @@ void DBUpdater<T>::ApplyFile(DatabaseWorkerPool<T>& pool, std::string const& hos
 
         throw UpdateException("update failed");
     }
+#endif // WITH_POSTGRESQL
 }
 
 template class TC_DATABASE_API DBUpdater<LoginDatabaseConnection>;

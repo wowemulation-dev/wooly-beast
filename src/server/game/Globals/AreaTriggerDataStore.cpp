@@ -59,7 +59,7 @@ void AreaTriggerDataStore::LoadAreaTriggerTemplates()
     std::unordered_map<AreaTriggerId, std::vector<AreaTriggerAction>> actionsByAreaTrigger;
 
     //                                                            0              1         2           3            4
-    if (QueryResult templateActions = WorldDatabase.Query("SELECT AreaTriggerId, IsCustom, ActionType, ActionParam, TargetType FROM `areatrigger_template_actions`"))
+    if (QueryResult templateActions = WorldDatabase.Query("SELECT AreaTriggerId, IsCustom, ActionType, ActionParam, TargetType FROM " DB_QUOTE_IDENT("areatrigger_template_actions")))
     {
         do
         {
@@ -108,7 +108,7 @@ void AreaTriggerDataStore::LoadAreaTriggerTemplates()
     }
 
     //                                                     0                              1         2    3         4         5               6
-    if (QueryResult vertices = WorldDatabase.Query("SELECT AreaTriggerCreatePropertiesId, IsCustom, Idx, VerticeX, VerticeY, VerticeTargetX, VerticeTargetY FROM `areatrigger_create_properties_polygon_vertex` ORDER BY `AreaTriggerCreatePropertiesId`, `IsCustom`, `Idx`"))
+    if (QueryResult vertices = WorldDatabase.Query("SELECT AreaTriggerCreatePropertiesId, IsCustom, Idx, VerticeX, VerticeY, VerticeTargetX, VerticeTargetY FROM " DB_QUOTE_IDENT("areatrigger_create_properties_polygon_vertex") " ORDER BY " DB_QUOTE_IDENT("AreaTriggerCreatePropertiesId") ", " DB_QUOTE_IDENT("IsCustom") ", " DB_QUOTE_IDENT("Idx")))
     {
         do
         {
@@ -131,7 +131,7 @@ void AreaTriggerDataStore::LoadAreaTriggerTemplates()
     }
 
     //                                                    0                              1         2  3, 4
-    if (QueryResult splines = WorldDatabase.Query("SELECT AreaTriggerCreatePropertiesId, IsCustom, X, Y, Z FROM `areatrigger_create_properties_spline_point` ORDER BY `AreaTriggerCreatePropertiesId`, `IsCustom`, `Idx`"))
+    if (QueryResult splines = WorldDatabase.Query("SELECT AreaTriggerCreatePropertiesId, IsCustom, X, Y, Z FROM " DB_QUOTE_IDENT("areatrigger_create_properties_spline_point") " ORDER BY " DB_QUOTE_IDENT("AreaTriggerCreatePropertiesId") ", " DB_QUOTE_IDENT("IsCustom") ", " DB_QUOTE_IDENT("Idx")))
     {
         do
         {
@@ -147,7 +147,7 @@ void AreaTriggerDataStore::LoadAreaTriggerTemplates()
     }
 
     //                                                      0   1         2      3            4
-    if (QueryResult templates = WorldDatabase.Query("SELECT Id, IsCustom, Flags, ActionSetId, ActionSetFlags FROM `areatrigger_template`"))
+    if (QueryResult templates = WorldDatabase.Query("SELECT Id, IsCustom, Flags, ActionSetId, ActionSetFlags FROM " DB_QUOTE_IDENT("areatrigger_template")))
     {
         do
         {
@@ -171,7 +171,7 @@ void AreaTriggerDataStore::LoadAreaTriggerTemplates()
     //   5            6             7             8              9       10         11                 12               13                 14
         "MoveCurveId, ScaleCurveId, MorphCurveId, FacingCurveId, AnimId, AnimKitId, DecalPropertiesId, SpellForVisuals, TimeToTargetScale, Speed, "
     //   15     16          17          18          19          20          21          22          23          24
-        "Shape, ShapeData0, ShapeData1, ShapeData2, ShapeData3, ShapeData4, ShapeData5, ShapeData6, ShapeData7, ScriptName FROM `areatrigger_create_properties`"))
+        "Shape, ShapeData0, ShapeData1, ShapeData2, ShapeData3, ShapeData4, ShapeData5, ShapeData6, ShapeData7, ScriptName FROM " DB_QUOTE_IDENT("areatrigger_create_properties")))
     {
         do
         {
@@ -273,7 +273,7 @@ void AreaTriggerDataStore::LoadAreaTriggerTemplates()
     }
 
     //                                                                  0                              1         2           3             4                5             6        7                 8
-    if (QueryResult circularMovementInfos = WorldDatabase.Query("SELECT AreaTriggerCreatePropertiesId, IsCustom, StartDelay, CircleRadius, BlendFromRadius, InitialAngle, ZOffset, CounterClockwise, CanLoop FROM `areatrigger_create_properties_orbit`"))
+    if (QueryResult circularMovementInfos = WorldDatabase.Query("SELECT AreaTriggerCreatePropertiesId, IsCustom, StartDelay, CircleRadius, BlendFromRadius, InitialAngle, ZOffset, CounterClockwise, CanLoop FROM " DB_QUOTE_IDENT("areatrigger_create_properties_orbit")))
     {
         do
         {
@@ -329,7 +329,7 @@ void AreaTriggerDataStore::LoadAreaTriggerSpawns()
 
     uint32 oldMSTime = getMSTime();
     //                                                      0        1                              2         3      4                  5     6     7     8            9              10       11          12
-    if (QueryResult templates = WorldDatabase.Query("SELECT SpawnId, AreaTriggerCreatePropertiesId, IsCustom, MapId, SpawnDifficulties, PosX, PosY, PosZ, Orientation, PhaseUseFlags, PhaseId, PhaseGroup, ScriptName FROM `areatrigger`"))
+    if (QueryResult templates = WorldDatabase.Query("SELECT SpawnId, AreaTriggerCreatePropertiesId, IsCustom, MapId, SpawnDifficulties, PosX, PosY, PosZ, Orientation, PhaseUseFlags, PhaseId, PhaseGroup, ScriptName FROM " DB_QUOTE_IDENT("areatrigger")))
     {
         do
         {

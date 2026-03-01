@@ -17,7 +17,11 @@
 
 #include "PreparedStatement.h"
 #include "Errors.h"
+#ifdef WITH_POSTGRESQL
+#include "PostgreSQLConnection.h"
+#else
 #include "MySQLConnection.h"
+#endif
 #include "QueryResult.h"
 #include "StringFormat.h"
 #include <fmt/chrono.h>
@@ -131,7 +135,7 @@ void PreparedStatementBase::setNull(uint8 index)
 }
 
 //- Execution
-PreparedQueryResult PreparedStatementTask::Query(MySQLConnection* conn, PreparedStatementBase* stmt)
+PreparedQueryResult PreparedStatementTask::Query(DatabaseConnection* conn, PreparedStatementBase* stmt)
 {
     PreparedResultSet* result = conn->Query(stmt);
     if (!result || !result->GetRowCount())
@@ -143,7 +147,7 @@ PreparedQueryResult PreparedStatementTask::Query(MySQLConnection* conn, Prepared
     return PreparedQueryResult(result);
 }
 
-bool PreparedStatementTask::Execute(MySQLConnection* conn, PreparedStatementBase* stmt)
+bool PreparedStatementTask::Execute(DatabaseConnection* conn, PreparedStatementBase* stmt)
 {
     return conn->Execute(stmt);
 }

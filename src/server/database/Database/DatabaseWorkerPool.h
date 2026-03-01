@@ -27,7 +27,13 @@
 #include <string>
 #include <vector>
 
+#ifdef WITH_POSTGRESQL
+struct PostgreSQLConnectionInfo;
+using DatabaseConnectionInfo = PostgreSQLConnectionInfo;
+#else
 struct MySQLConnectionInfo;
+using DatabaseConnectionInfo = MySQLConnectionInfo;
+#endif
 
 template <class T>
 class DatabaseWorkerPool
@@ -55,7 +61,7 @@ class DatabaseWorkerPool
         //! Prepares all prepared statements
         bool PrepareStatements();
 
-        inline MySQLConnectionInfo const* GetConnectionInfo() const
+        inline DatabaseConnectionInfo const* GetConnectionInfo() const
         {
             return _connectionInfo.get();
         }
@@ -232,7 +238,7 @@ class DatabaseWorkerPool
         std::unique_ptr<Trinity::Asio::IoContext> _ioContext;
         std::atomic<size_t> _queueSize;
         std::array<std::vector<std::unique_ptr<T>>, IDX_SIZE> _connections;
-        std::unique_ptr<MySQLConnectionInfo> _connectionInfo;
+        std::unique_ptr<DatabaseConnectionInfo> _connectionInfo;
         std::vector<uint8> _preparedStatementSize;
         uint8 _async_threads, _synch_threads;
 };

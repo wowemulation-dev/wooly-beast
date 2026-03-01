@@ -21,14 +21,20 @@
 #include "DatabaseEnvFwd.h"
 #include "Define.h"
 
+#ifdef WITH_POSTGRESQL
+class PostgreSQLConnection;
+using DatabaseConnection = PostgreSQLConnection;
+#else
 class MySQLConnection;
+using DatabaseConnection = MySQLConnection;
+#endif
 
 /*! Raw, ad-hoc query. */
 class TC_DATABASE_API BasicStatementTask
 {
 public:
-    static QueryResult Query(MySQLConnection* conn, char const* sql);
-    static bool Execute(MySQLConnection* conn, char const* sql);
+    static QueryResult Query(DatabaseConnection* conn, char const* sql);
+    static bool Execute(DatabaseConnection* conn, char const* sql);
 };
 
 #endif

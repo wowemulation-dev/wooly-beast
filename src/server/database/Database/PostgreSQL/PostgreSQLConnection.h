@@ -15,24 +15,25 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _MYSQLCONNECTION_H
-#define _MYSQLCONNECTION_H
+#ifndef _POSTGRESQLCONNECTION_H
+#define _POSTGRESQLCONNECTION_H
 
 #include "AsioHacksFwd.h"
 #include "DatabaseConnectionFlags.h"
 #include "Define.h"
 #include "DatabaseEnvFwd.h"
+#include <libpq-fe.h>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
 
-class MySQLPreparedStatement;
+class PostgreSQLPreparedStatement;
 
-struct TC_DATABASE_API MySQLConnectionInfo
+struct TC_DATABASE_API PostgreSQLConnectionInfo
 {
-    explicit MySQLConnectionInfo(std::string const& infoString);
+    explicit PostgreSQLConnectionInfo(std::string const& infoString);
 
     std::string user;
     std::string password;
@@ -42,14 +43,14 @@ struct TC_DATABASE_API MySQLConnectionInfo
     std::string ssl;
 };
 
-class TC_DATABASE_API MySQLConnection
+class TC_DATABASE_API PostgreSQLConnection
 {
     template <class T> friend class DatabaseWorkerPool;
     friend class PingOperation;
 
     public:
-        MySQLConnection(MySQLConnectionInfo& connInfo, ConnectionFlags connectionFlags);
-        virtual ~MySQLConnection();
+        PostgreSQLConnection(PostgreSQLConnectionInfo& connInfo, ConnectionFlags connectionFlags);
+        virtual ~PostgreSQLConnection();
 
         uint32 Open();
         void Close();
@@ -60,8 +61,8 @@ class TC_DATABASE_API MySQLConnection
         bool Execute(PreparedStatementBase* stmt);
         ResultSet* Query(char const* sql);
         PreparedResultSet* Query(PreparedStatementBase* stmt);
-        bool _Query(char const* sql, MySQLResult** pResult, MySQLField** pFields, uint64* pRowCount, uint32* pFieldCount);
-        bool _Query(PreparedStatementBase* stmt, MySQLPreparedStatement** mysqlStmt, MySQLResult** pResult, uint64* pRowCount, uint32* pFieldCount);
+        bool _Query(char const* sql, PGresult** pResult, uint64* pRowCount, uint32* pFieldCount);
+        bool _Query(PreparedStatementBase* stmt, PostgreSQLPreparedStatement** pgStmt, PGresult** pResult, uint64* pRowCount, uint32* pFieldCount);
 
         void BeginTransaction();
         void RollbackTransaction();
@@ -76,37 +77,33 @@ class TC_DATABASE_API MySQLConnection
         std::thread::id GetWorkerThreadId() const;
 
     protected:
-        /// Tries to acquire lock. If lock is acquired by another thread
-        /// the calling parent will just try another connection
         bool LockIfReady();
-
-        /// Called by parent databasepool. Will let other threads access this connection
         void Unlock();
 
         uint32 GetServerVersion() const;
-        MySQLPreparedStatement* GetPreparedStatement(uint32 index);
+        PostgreSQLPreparedStatement* GetPreparedStatement(uint32 index);
         void PrepareStatement(uint32 index, std::string_view sql, ConnectionFlags flags);
 
         virtual void DoPrepareStatements() = 0;
 
-        typedef std::vector<std::unique_ptr<MySQLPreparedStatement>> PreparedStatementContainer;
+        typedef std::vector<std::unique_ptr<PostgreSQLPreparedStatement>> PreparedStatementContainer;
 
-        PreparedStatementContainer           m_stmts;         //!< PreparedStatements storage
-        bool                                 m_reconnecting;  //!< Are we reconnecting?
-        bool                                 m_prepareError;  //!< Was there any error while preparing statements?
+        PreparedStatementContainer           m_stmts;
+        bool                                 m_reconnecting;
+        bool                                 m_prepareError;
 
     private:
-        bool _HandleMySQLErrno(uint32 errNo, uint8 attempts = 5);
+        bool _HandlePostgreSQLError(uint8 attempts = 5);
 
         struct WorkerThread;
-        std::unique_ptr<WorkerThread> m_workerThread;       //!< Core worker thread.
-        MySQLHandle*          m_Mysql;                      //!< MySQL Handle.
-        MySQLConnectionInfo&  m_connectionInfo;             //!< Connection info (used for logging)
-        ConnectionFlags       m_connectionFlags;            //!< Connection flags (for preparing relevant statements)
-        std::mutex            m_Mutex;
+        std::unique_ptr<WorkerThread> m_workerThread;
+        PGconn*                       m_conn;
+        PostgreSQLConnectionInfo&     m_connectionInfo;
+        ConnectionFlags               m_connectionFlags;
+        std::mutex                    m_Mutex;
 
-        MySQLConnection(MySQLConnection const& right) = delete;
-        MySQLConnection& operator=(MySQLConnection const& right) = delete;
+        PostgreSQLConnection(PostgreSQLConnection const& right) = delete;
+        PostgreSQLConnection& operator=(PostgreSQLConnection const& right) = delete;
 };
 
 #endif

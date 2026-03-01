@@ -29,6 +29,14 @@
 #include <fstream>
 #include <sstream>
 
+// Identifier quoting character for player dump SQL format.
+// Must match DB_QUOTE_IDENT from DatabaseEnv.h.
+#ifdef WITH_POSTGRESQL
+static constexpr char DB_IDENT_QUOTE = '"';
+#else
+static constexpr char DB_IDENT_QUOTE = '`';
+#endif
+
 // static data
 enum GuidType : uint8
 {
@@ -494,9 +502,9 @@ inline bool FindColumn(TableStruct const& ts, std::string const& str, std::strin
 
 inline std::string GetTableName(std::string const& str)
 {
-    // length of "INSERT INTO `"
+    // length of "INSERT INTO " + quote char
     static std::string::size_type const s = 13;
-    std::string::size_type e = str.find('`', s);
+    std::string::size_type e = str.find(DB_IDENT_QUOTE, s);
     if (e == std::string::npos)
         return "";
 
@@ -505,21 +513,28 @@ inline std::string GetTableName(std::string const& str)
 
 inline bool ValidateFields(TableStruct const& ts, std::string const& str, size_t lineNumber)
 {
-    std::string::size_type s = str.find("` VALUES (");
+    // Build delimiter strings using the DB-appropriate quote character
+    // e.g. MySQL: "` VALUES (" / "` (`" / "`, `"
+    //      PgSQL: "" VALUES (" / "" ("" / "", ""
+    static std::string const quoteValuesOpen = std::string(1, DB_IDENT_QUOTE) + " VALUES (";
+    static std::string const quoteParenQuote = std::string(1, DB_IDENT_QUOTE) + " (" + DB_IDENT_QUOTE;
+    static std::string const quoteCommaQuote = std::string(1, DB_IDENT_QUOTE) + ", " + DB_IDENT_QUOTE;
+
+    std::string::size_type s = str.find(quoteValuesOpen);
     if (s != std::string::npos) // old dump format (no column names)
         return true;
 
     // new format has insert with columns, need validation else we risk executing an invalid query
-    s = str.find("` (`");
+    s = str.find(quoteParenQuote);
     if (s == std::string::npos)
     {
         TC_LOG_ERROR("misc", "LoadPlayerDump: (line {}) dump format not recognized.", lineNumber);
         return false;
     }
-    s += 4;
+    s += quoteParenQuote.length();
 
     std::string::size_type valPos = str.find("VALUES ('");
-    std::string::size_type e = str.find('`', s);
+    std::string::size_type e = str.find(DB_IDENT_QUOTE, s);
     if (e == std::string::npos || valPos == std::string::npos)
     {
         TC_LOG_ERROR("misc", "LoadPlayerDump: (line {}) unexpected end of line", lineNumber);
@@ -536,9 +551,9 @@ inline bool ValidateFields(TableStruct const& ts, std::string const& str, size_t
             return false;
         }
 
-        // length of "`, `"
-        s = e + 4;
-        e = str.find('`', s);
+        // skip past quote-comma-quote delimiter
+        s = e + quoteCommaQuote.length();
+        e = str.find(DB_IDENT_QUOTE, s);
     } while (e < valPos);
 
     return true;
@@ -600,10 +615,10 @@ inline void AppendTableDump(StringTransaction& trans, TableStruct const& tableSt
     do
     {
         std::ostringstream ss;
-        ss << "INSERT INTO `" << tableStruct.TableName << "` (";
+        ss << "INSERT INTO " << DB_IDENT_QUOTE << tableStruct.TableName << DB_IDENT_QUOTE << " (";
         for (auto itr = tableStruct.TableFields.begin(); itr != tableStruct.TableFields.end();)
         {
-            ss << '`' << itr->FieldName << '`';
+            ss << DB_IDENT_QUOTE << itr->FieldName << DB_IDENT_QUOTE;
             ++itr;
 
             if (itr != tableStruct.TableFields.end())

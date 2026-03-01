@@ -18,10 +18,14 @@
 #include "Transaction.h"
 #include "Errors.h"
 #include "Log.h"
+#ifdef WITH_POSTGRESQL
+#include "PostgreSQLConnection.h"
+#else
 #include "MySQLConnection.h"
+#include <mysqld_error.h>
+#endif
 #include "PreparedStatement.h"
 #include "Timer.h"
-#include <mysqld_error.h>
 #include <sstream>
 #include <thread>
 #include <cstring>
@@ -56,12 +60,13 @@ void TransactionBase::Cleanup()
     _cleanedUp = true;
 }
 
-bool TransactionTask::Execute(MySQLConnection* conn, std::shared_ptr<TransactionBase> trans)
+bool TransactionTask::Execute(DatabaseConnection* conn, std::shared_ptr<TransactionBase> trans)
 {
     int errorCode = TryExecute(conn, trans);
     if (!errorCode)
         return true;
 
+#ifndef WITH_POSTGRESQL
     if (errorCode == ER_LOCK_DEADLOCK)
     {
         std::string threadId = []()
@@ -85,6 +90,7 @@ bool TransactionTask::Execute(MySQLConnection* conn, std::shared_ptr<Transaction
 
         TC_LOG_ERROR("sql.sql", "Fatal deadlocked SQL Transaction, it will not be retried anymore. Thread Id: {}", threadId);
     }
+#endif
 
     // Clean up now.
     trans->Cleanup();
@@ -92,7 +98,7 @@ bool TransactionTask::Execute(MySQLConnection* conn, std::shared_ptr<Transaction
     return false;
 }
 
-int TransactionTask::TryExecute(MySQLConnection* conn, std::shared_ptr<TransactionBase> trans)
+int TransactionTask::TryExecute(DatabaseConnection* conn, std::shared_ptr<TransactionBase> trans)
 {
     return conn->ExecuteTransaction(trans);
 }

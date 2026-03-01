@@ -561,7 +561,11 @@ std::shared_ptr<Trinity::Net::Http::SessionState> LoginRESTService::CreateNewSes
 
 void LoginRESTService::MigrateLegacyPasswordHashes() const
 {
+#ifdef WITH_POSTGRESQL
+    if (!LoginDatabase.Query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = current_schema() AND TABLE_NAME = 'battlenet_accounts' AND COLUMN_NAME = 'sha_pass_hash'"))
+#else
     if (!LoginDatabase.Query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = SCHEMA() AND TABLE_NAME = 'battlenet_accounts' AND COLUMN_NAME = 'sha_pass_hash'"))
+#endif
         return;
 
     TC_LOG_INFO(_logger, "Updating password hashes...");

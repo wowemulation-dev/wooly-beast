@@ -1489,7 +1489,7 @@ void DB2Manager::LoadHotfixBlob(uint32 localeMask)
 {
     uint32 oldMSTime = getMSTime();
 
-    QueryResult result = HotfixDatabase.Query("SELECT TableHash, RecordId, locale, `Blob` FROM hotfix_blob ORDER BY TableHash");
+    QueryResult result = HotfixDatabase.Query("SELECT TableHash, RecordId, locale, " DB_QUOTE_IDENT("Blob") " FROM hotfix_blob ORDER BY TableHash");
 
     if (!result)
     {
@@ -1544,7 +1544,7 @@ void DB2Manager::LoadHotfixOptionalData(uint32 localeMask)
 
     uint32 oldMSTime = getMSTime();
 
-    QueryResult result = HotfixDatabase.Query("SELECT TableHash, RecordId, locale, `Key`, `Data` FROM hotfix_optional_data ORDER BY TableHash");
+    QueryResult result = HotfixDatabase.Query("SELECT TableHash, RecordId, locale, " DB_QUOTE_IDENT("Key") ", " DB_QUOTE_IDENT("Data") " FROM hotfix_optional_data ORDER BY TableHash");
 
     if (!result)
     {

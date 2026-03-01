@@ -21,7 +21,11 @@
 #include "DBUpdater.h"
 #include "Log.h"
 
+#ifdef WITH_POSTGRESQL
+#include <libpq-fe.h>
+#else
 #include <mysqld_error.h>
+#endif
 
 DatabaseLoader::DatabaseLoader(std::string const& logger, uint32 const defaultUpdateMask)
     : _logger(logger), _autoSetup(sConfigMgr->GetBoolDefault("Updates.AutoSetup", true)),
@@ -57,7 +61,11 @@ DatabaseLoader& DatabaseLoader::AddDatabase(DatabaseWorkerPool<T>& pool, std::st
         if (uint32 error = pool.Open())
         {
             // Database does not exist
+#ifdef WITH_POSTGRESQL
+            if ((error == CONNECTION_BAD) && updatesEnabledForThis && _autoSetup)
+#else
             if ((error == ER_BAD_DB_ERROR) && updatesEnabledForThis && _autoSetup)
+#endif
             {
                 // Try to create the database and connect again if auto setup is enabled
                 if (DBUpdater<T>::Create(pool) && (!pool.Open()))
@@ -67,8 +75,13 @@ DatabaseLoader& DatabaseLoader::AddDatabase(DatabaseWorkerPool<T>& pool, std::st
             // If the error wasn't handled quit
             if (error)
             {
+#ifdef WITH_POSTGRESQL
+                TC_LOG_ERROR("sql.driver", "\nDatabasePool {} NOT opened. There were errors opening the PostgreSQL connections. Check your SQLDriverLogFile "
+                    "for specific errors.", name);
+#else
                 TC_LOG_ERROR("sql.driver", "\nDatabasePool {} NOT opened. There were errors opening the MySQL connections. Check your SQLDriverLogFile "
                     "for specific errors. Read wiki at https://www.trinitycore.info/display/tc/TrinityCore+Home", name);
+#endif
 
                 return false;
             }
