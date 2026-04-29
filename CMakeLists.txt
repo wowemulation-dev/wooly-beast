@@ -2,11 +2,12 @@
 #
 # Copyright 2008 - 2025, TrinityCore and the TrinityCore contributors
 
-cmake_minimum_required(VERSION 3.24)
+cmake_minimum_required(VERSION 3.30)
 
 # add this options before PROJECT keyword
 set(CMAKE_DISABLE_SOURCE_CHANGES ON)
 set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Set projectname (must be done AFTER setting configurationtypes)
 project(TrinityCore)

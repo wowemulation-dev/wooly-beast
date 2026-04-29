@@ -34,12 +34,7 @@ if(WIN32)
   set(Boost_USE_STATIC_RUNTIME     OFF)
 endif()
 
-if (WIN32)
-  # On windows the requirements are higher according to the wiki.
-  set(BOOST_REQUIRED_VERSION 1.78)
-else()
-  set(BOOST_REQUIRED_VERSION 1.74)
-endif()
+set(BOOST_REQUIRED_VERSION 1.86)
 
 find_package(Boost ${BOOST_REQUIRED_VERSION}
   REQUIRED

@@ -51,17 +51,17 @@ Before starting, make sure you have:
 
 - **Operating System**: Windows 10+, Ubuntu 20.04+, or macOS 10.15+
 - **C++ Compiler**: C++20 compatible - GCC 11+, Clang 14+, or Visual Studio 2022+
-- **CMake**: Version 3.28 or newer
+- **CMake**: Version 3.30 or newer
 - **Git**: For downloading the source code
 
 #### Database (one of)
 
-- **MySQL/MariaDB**: Version 8.0+ recommended
+- **MySQL/MariaDB**: MySQL 8.0+ or MariaDB 10.6+ (enforced at startup)
 - **PostgreSQL**: Version 16+ (compile with `-DWITH_POSTGRESQL=1`)
 
 #### Additional Requirements
 
-- **Boost Libraries**: Version 1.74 or newer
+- **Boost Libraries**: Version 1.86 or newer
 - **OpenSSL**: Version 3.0 or newer
 
 ---

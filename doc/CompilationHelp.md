@@ -190,7 +190,7 @@ cmake --build . --verbose
 
 | Component | Minimum | Recommended |
 |-----------|---------|-------------|
-| **CMake** | 3.28 | Latest |
+| **CMake** | 3.30 | Latest |
 | **GCC** | 11 | 13+ |
 | **Clang** | 14 | 18+ |
 | **Visual Studio** | 2022 | 2022 |
@@ -233,7 +233,7 @@ Include this information:
 **Operating System**: Ubuntu 22.04 / Windows 11 / macOS 13
 **Compiler**: GCC 10.0 / Clang 12 / MSVC 2022
 **CMake Version**: 3.24.1
-**Database**: MySQL 8.0+ / PostgreSQL 16+
+**Database**: MySQL 8.0+ / MariaDB 10.6+ / PostgreSQL 16+
 
 **Error Message**:
 [Paste complete error here with 20 lines of context]

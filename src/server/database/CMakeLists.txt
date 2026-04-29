@@ -4,7 +4,7 @@
 
 # Database backend selection
 if(WITH_POSTGRESQL OR DATABASE_TYPE STREQUAL "PostgreSQL")
-  find_package(PostgreSQL 14 REQUIRED)
+  find_package(PostgreSQL 16 REQUIRED)
   set(USING_POSTGRESQL TRUE)
 else()
   set(USING_POSTGRESQL FALSE)

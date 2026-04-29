@@ -10,7 +10,7 @@
 
 if(UNIX)
   # Look for an installed zlib on unix
-  find_package(ZLIB REQUIRED)
+  find_package(ZLIB 1.3 REQUIRED)
 
   add_library(zlib SHARED IMPORTED GLOBAL)
 

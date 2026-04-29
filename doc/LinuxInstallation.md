@@ -28,9 +28,9 @@ Installing TrinityCore on Linux requires these dependencies. This guide covers *
 ### Required Software
 
 - **Compiler**: GCC 11+ or Clang 14+ (C++20 required)
-- **CMake**: Version 3.28 or newer
-- **Database**: MySQL 8.0+ or PostgreSQL 16+
-- **Libraries**: Boost 1.74+, OpenSSL 3.0+, Zlib
+- **CMake**: Version 3.30 or newer
+- **Database**: MySQL 8.0+ / MariaDB 10.6+, or PostgreSQL 16+
+- **Libraries**: Boost 1.86+, OpenSSL 3.0+, Zlib
 
 ---
 

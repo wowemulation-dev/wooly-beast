@@ -491,7 +491,7 @@ void CollectionMgr::LoadAccountItemAppearances(PreparedQueryResult knownAppearan
 
         } while (knownAppearances->NextRow());
 
-        _appearances->init_from_block_range(blocks.begin(), blocks.end());
+        *_appearances = boost::dynamic_bitset<uint32>(blocks.begin(), blocks.end());
     }
 
     if (favoriteAppearances)
@@ -901,7 +901,7 @@ void CollectionMgr::LoadAccountTransmogIllusions(PreparedQueryResult knownTransm
 
         } while (knownTransmogIllusions->NextRow());
 
-        _transmogIllusions->init_from_block_range(blocks.begin(), blocks.end());
+        *_transmogIllusions = boost::dynamic_bitset<uint32>(blocks.begin(), blocks.end());
     }
 
     // Static illusions known by every player
