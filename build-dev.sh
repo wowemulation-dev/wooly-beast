@@ -6,7 +6,7 @@
 
 # Build TrinityCore for development with selectable database backend
 
-set -e
+set -euo pipefail
 
 # Default settings
 BUILD_TYPE="${BUILD_TYPE:-RelWithDebInfo}"
@@ -103,6 +103,7 @@ build_backend() {
         -DWITH_WARNINGS=ON \
         -DWITH_COREDEBUG=ON \
         -DBUILD_TESTING=ON \
+        -DNOJEM=OFF \
         -DUSE_COREPCH=ON \
         -DUSE_SCRIPTPCH=ON \
         -DSERVERS=ON \
