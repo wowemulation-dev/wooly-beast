@@ -1,4 +1,4 @@
-# TrinityCore
+# ![logo](https://community.trinitycore.org/public/style_images/1_trinitycore.png) TrinityCore (3.3.5)
 
 <div align="center">
   <img src="https://trinitycore.org/images/logo.png" alt="TrinityCore Logo" width="200">
