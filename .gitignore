@@ -16,3 +16,6 @@ __pycache__/
 
 # Auto-generated PostgreSQL SQL files (from mysql-to-postgres converter)
 sql/**/postgresql/
+
+# JetBrains IDE configuration files
+.idea/
